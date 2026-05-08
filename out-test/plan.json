@@ -1,0 +1,212 @@
+{
+  "version": 1,
+  "title": "Minimal SaaS demo",
+  "summary": "Product hierarchy with sample issue, ticket, incident, and a link. SLA policy configuration is handled via UI guidance.",
+  "ui_guidance_sections": [
+    {
+      "title": "Optional: sprint boards",
+      "doc_links": [
+        "https://devrev.ai/docs/DevRevU/demos"
+      ],
+      "steps": [
+        "Open DevRev and navigate to your sprint or curated iteration view.",
+        "Assign one or more demo issues to a sprint if your story requires it.",
+        "Note: automated sprint discovery in this CLI aggregates sprint metadata from works.list responses and may miss empty sprints."
+      ]
+    },
+    {
+      "title": "Configure SLA policies (UI only)",
+      "doc_links": [
+        "https://devrev.ai/docs/DevRevU/demos",
+        "https://developer.devrev.ai/beta/about/for-developers"
+      ],
+      "steps": [
+        "Log in to your DevRev org and open the Settings area (gear / admin panel).",
+        "Locate the 'SLAs' or 'Service Level Agreements' section within Settings — this is managed entirely through the UI and is not currently available via the public REST API.",
+        "Create a new SLA policy by clicking 'Add policy' (or equivalent). Give it a descriptive name such as 'Demo P1 SLA' so it is easy to identify during the POC.",
+        "Define target response and resolution times for each priority tier (e.g. P1: 1 h response / 4 h resolution; P2: 4 h / 24 h). Adjust to match your prospect's expectations.",
+        "Set breach and warning thresholds (e.g. warn at 75 % of elapsed time) so the demo can visually show an SLA approaching breach.",
+        "Optionally configure business-hours calendars and holiday schedules under the same Settings area before saving the policy.",
+        "Associate the SLA policy with the relevant ticket queue or customer segment (e.g. apply to all tickets tagged with your demo account) so the tickets created in steps work-6 are governed by the policy.",
+        "Verify the policy is active by opening the demo ticket (work-6) and confirming the SLA timer is visible on the ticket detail view.",
+        "Refer to https://devrev.ai/docs/DevRevU/demos and https://developer.devrev.ai/beta/about/for-developers for the latest UI navigation details, as menu paths may change between releases."
+      ]
+    }
+  ],
+  "steps": [
+    {
+      "id": "part-1",
+      "kind": "create_part",
+      "title": "Create product: Acme Platform",
+      "rationale": "Blueprint part — establishes the top-level product node in the part hierarchy, giving every downstream capability, feature, and work item a coherent parent for the demo story.",
+      "payload": {
+        "manifest_ref": "prod:acme",
+        "body": {
+          "type": "product",
+          "name": "Acme Platform",
+          "description": "Demo product",
+          "owned_by": [
+            "SELF"
+          ]
+        }
+      }
+    },
+    {
+      "id": "part-2",
+      "kind": "create_part",
+      "title": "Create capability: Core Services",
+      "rationale": "Blueprint part (parent ref: prod:acme) — groups related features under a logical capability, demonstrating the multi-level part hierarchy to prospects.",
+      "payload": {
+        "manifest_ref": "cap:core",
+        "parent_ref": "prod:acme",
+        "body": {
+          "type": "capability",
+          "name": "Core Services",
+          "owned_by": [
+            "SELF"
+          ],
+          "parent_part": [
+            {
+              "__ref": "prod:acme"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "part-3",
+      "kind": "create_part",
+      "title": "Create feature: SSO",
+      "rationale": "Blueprint part (parent ref: cap:core) — provides a concrete, recognisable feature that tickets, issues, and incidents will be attached to throughout the demo.",
+      "payload": {
+        "manifest_ref": "feat:sso",
+        "parent_ref": "cap:core",
+        "body": {
+          "type": "feature",
+          "name": "SSO",
+          "owned_by": [
+            "SELF"
+          ],
+          "parent_part": [
+            {
+              "__ref": "cap:core"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "part-4",
+      "kind": "create_part",
+      "title": "Create enhancement: Onboarding checklist",
+      "rationale": "Blueprint part (parent ref: feat:sso) — illustrates the enhancement type within the part hierarchy, showing how product improvements are tracked alongside features.",
+      "payload": {
+        "manifest_ref": "enh:onboarding",
+        "parent_ref": "feat:sso",
+        "body": {
+          "type": "enhancement",
+          "name": "Onboarding checklist",
+          "owned_by": [
+            "SELF"
+          ],
+          "parent_part": [
+            {
+              "__ref": "feat:sso"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "work-5",
+      "kind": "create_work",
+      "title": "Create issue: Demo issue — backlog grooming",
+      "rationale": "Blueprint work ref=iss:demo1 — seeds the engineering backlog with a realistic issue tied to the SSO feature, enabling sprint and prioritisation storytelling.",
+      "payload": {
+        "manifest_ref": "iss:demo1",
+        "body": {
+          "type": "issue",
+          "title": "Demo issue — backlog grooming",
+          "applies_to_part": {
+            "__ref": "feat:sso"
+          },
+          "owned_by": [
+            "SELF"
+          ],
+          "external_ref": "demo-se-issue-1"
+        }
+      }
+    },
+    {
+      "id": "work-6",
+      "kind": "create_work",
+      "title": "Create ticket: Demo ticket — customer question",
+      "rationale": "Blueprint work ref=tic:demo1 — represents an inbound customer support request against the SSO feature, anchoring the support-to-engineering traceability narrative.",
+      "payload": {
+        "manifest_ref": "tic:demo1",
+        "body": {
+          "type": "ticket",
+          "title": "Demo ticket — customer question",
+          "applies_to_part": {
+            "__ref": "feat:sso"
+          },
+          "owned_by": [
+            "SELF"
+          ],
+          "external_ref": "demo-se-ticket-1"
+        }
+      }
+    },
+    {
+      "id": "inc-7",
+      "kind": "create_incident",
+      "title": "Create incident: Demo incident — brief outage",
+      "rationale": "Blueprint incident ref=inc:demo1 — introduces an operational event tied to the SSO feature so that the demo can show end-to-end incident → ticket → issue traceability.",
+      "payload": {
+        "manifest_ref": "inc:demo1",
+        "body": {
+          "title": "Demo incident — brief outage",
+          "body": "Synthetic incident for POC storytelling.",
+          "applies_to_parts": [
+            {
+              "__ref": "feat:sso"
+            }
+          ],
+          "owned_by": [
+            "SELF"
+          ]
+        }
+      }
+    },
+    {
+      "id": "link-8",
+      "kind": "create_link",
+      "title": "Link ticket → issue (is_related_to)",
+      "rationale": "Relates the customer-facing ticket to the engineering issue, demonstrating bidirectional traceability between support and product development in the demo.",
+      "payload": {
+        "source": {
+          "__ref": "tic:demo1"
+        },
+        "target": {
+          "__ref": "iss:demo1"
+        },
+        "link_type": "is_related_to"
+      }
+    },
+    {
+      "id": "link-9",
+      "kind": "create_link",
+      "title": "Link incident → ticket (is_related_to)",
+      "rationale": "Associates the incident with the customer ticket so reviewers can trace the operational outage back to a specific support request, completing the incident-to-ticket-to-issue chain.",
+      "payload": {
+        "source": {
+          "__ref": "inc:demo1"
+        },
+        "target": {
+          "__ref": "tic:demo1"
+        },
+        "link_type": "is_related_to"
+      }
+    }
+  ]
+}

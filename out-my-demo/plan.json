@@ -1,0 +1,656 @@
+{
+  "version": 1,
+  "title": "DevRev POC Plan — Audyence (HubSpot Replacement)",
+  "summary": "End-to-end DevRev demo for Audyence, a B2B programmatic audience platform replacing HubSpot. The plan covers the full product hierarchy (platform → capabilities → features → enhancements), representative customer accounts and contacts (rev-users), support tickets tied to engineering issues, a sample incident, and relationship links — demonstrating how DevRev unifies CRM, product, and support in a single surface relevant to Audyence's martech world.",
+  "ui_guidance_sections": [
+    {
+      "title": "Configure Pipeline Stages for Audyence Deal Tracking (CRM)",
+      "doc_links": [
+        "https://devrev.ai/docs/DevRevU/demos",
+        "https://developer.devrev.ai/beta/about/for-developers"
+      ],
+      "steps": [
+        "In DevRev, navigate to Settings and find the Pipeline or Funnel configuration section.",
+        "Create a new pipeline named 'Audyence New Business' with stages that reflect Audyence's sales motion: Prospecting → Discovery → Demo Delivered → POC Active → Proposal Sent → Closed Won / Closed Lost.",
+        "Create a second pipeline named 'Audyence Expansion' for upsell/cross-sell motions with stages: Identified → Scoping → Proposal → Closed.",
+        "Assign the Momentum Media Agency and Vertex Demand Partners accounts to opportunities in the appropriate pipeline to demonstrate pipeline-driven CRM replacing HubSpot deals.",
+        "Note: pipeline stage configuration is performed in the DevRev UI and is not yet available via the public REST API in v1."
+      ]
+    },
+    {
+      "title": "Set Up SLA Policies for Audyence Support Tiers",
+      "doc_links": [
+        "https://devrev.ai/docs/DevRevU/demos"
+      ],
+      "steps": [
+        "Navigate to Settings → Support → SLA Policies in the DevRev UI.",
+        "Create an 'Enterprise SLA' policy (matching Momentum Media Agency's tier): First Response < 1 hour, Resolution < 4 hours for P1; First Response < 4 hours, Resolution < 24 hours for P2.",
+        "Create a 'Growth SLA' policy (matching Vertex Demand Partners' tier): First Response < 4 hours, Resolution < 24 hours for P1.",
+        "Assign the Enterprise SLA to the Momentum Media Agency account and Growth SLA to Vertex Demand Partners to demonstrate tier-based support management.",
+        "Note: SLA policy creation and assignment must be done in the DevRev UI; it is not available via REST API in v1."
+      ]
+    },
+    {
+      "title": "Create Workflow Automations (Snap-ins) for Audyence Use Cases",
+      "doc_links": [
+        "https://developer.devrev.ai/beta/about/for-developers",
+        "https://devrev.ai/docs/DevRevU/demos"
+      ],
+      "steps": [
+        "Explore the DevRev Snap-in marketplace at https://developer.devrev.ai/beta/about/for-developers to find pre-built automations relevant to Audyence.",
+        "Configure an automation: When a ticket's severity is set to P1 and it is linked to the DSP Integrations capability, auto-escalate to the on-call engineering lead.",
+        "Configure an automation: When an engineering issue linked to a customer ticket transitions to 'Resolved', automatically notify the associated rev-user (customer contact) via email.",
+        "Configure a HubSpot migration snap-in (if available) to import existing HubSpot contacts as rev-users and HubSpot companies as accounts, preserving deal history as linked work items.",
+        "Note: snap-in configuration and workflow automation require the DevRev UI or snap-in SDK; they cannot be scripted via the basic REST API."
+      ]
+    },
+    {
+      "title": "Configure Custom Fields for Martech / Audyence Context",
+      "doc_links": [
+        "https://devrev.ai/docs/DevRevU/demos"
+      ],
+      "steps": [
+        "Navigate to Settings → Custom Fields in the DevRev UI.",
+        "Add a custom field 'DSP Platforms' (multi-select: TTD, DV360, Amazon DSP, MediaMath, Xandr) on the Account object to track which DSPs each customer uses.",
+        "Add a custom field 'Audience Type' (select: Lookalike, Intent, Retargeting, Contextual) on Ticket and Issue objects to classify work by audience category.",
+        "Add a custom field 'ARR' (currency) on the Account object to replicate HubSpot's deal value tracking at the account level.",
+        "Add a custom field 'Campaign Go-Live Date' (date) on Ticket objects to prioritize support requests by customer campaign urgency.",
+        "Note: custom field creation is performed in the DevRev UI settings and is not available via the public REST API in v1."
+      ]
+    },
+    {
+      "title": "Build Saved Views and Dashboards for Audyence Teams",
+      "doc_links": [
+        "https://devrev.ai/docs/DevRevU/demos"
+      ],
+      "steps": [
+        "In DevRev, create a saved view named 'Open DSP Integration Tickets' filtered by: type = ticket, applies_to_part = DSP Integrations capability, status = open. Share with the Customer Success team.",
+        "Create a saved view named 'Enterprise Customer Issues' filtered by: account tier = enterprise, type = ticket OR issue, status ≠ closed. This replicates the HubSpot 'high-value accounts' view.",
+        "Create a product team view: type = issue, capability = Audience Segmentation Engine OR DSP Integrations, sprint = current — for the engineering standup.",
+        "Create an executive dashboard showing: open P1/P2 tickets by account tier, active incidents, and enhancement delivery rate for the current quarter.",
+        "Note: saved views and custom dashboards are configured in the DevRev UI and are not available via REST API in v1."
+      ]
+    },
+    {
+      "title": "Sprint / Iteration Board Setup for Audyence Engineering Demo",
+      "doc_links": [
+        "https://devrev.ai/docs/DevRevU/demos"
+      ],
+      "steps": [
+        "Open DevRev and navigate to your sprint or curated iteration view.",
+        "Create a sprint named 'Audyence Sprint 1 — DSP Stability' and assign the TTD latency issue (demo-iss-ttd-latency) and overlap bug issue (demo-iss-overlap-bug) to it.",
+        "Create a second sprint 'Audyence Sprint 2 — Onboarding Scale' and assign the CSV limit issue (demo-iss-csv-limit).",
+        "Walk the demo audience through the board to show how engineering priorities are directly traceable to customer tickets from Momentum Media and Vertex — the key story vs HubSpot + Jira.",
+        "Note: automated sprint discovery in the CLI aggregates sprint metadata from works.list responses and may miss empty sprints."
+      ]
+    }
+  ],
+  "steps": [
+    {
+      "id": "part-1",
+      "kind": "create_part",
+      "title": "Create product: Audyence Platform",
+      "rationale": "Establishes the top-level product node in DevRev's part hierarchy, representing Audyence's core B2B programmatic audience platform. This is the anchor for all capabilities, features, and work items in the demo.",
+      "payload": {
+        "manifest_ref": "prod:audyence",
+        "body": {
+          "type": "product",
+          "name": "Audyence Platform",
+          "description": "B2B programmatic audience targeting platform enabling media buyers and sellers to activate first- and third-party audience data across DSPs.",
+          "owned_by": [
+            "SELF"
+          ]
+        }
+      }
+    },
+    {
+      "id": "part-2",
+      "kind": "create_part",
+      "title": "Create capability: Audience Segmentation Engine",
+      "rationale": "Core differentiating capability for Audyence — building and activating B2B audience segments. Demonstrating this as a tracked capability shows engineering and product alignment within DevRev.",
+      "payload": {
+        "manifest_ref": "cap:segmentation",
+        "parent_ref": "prod:audyence",
+        "body": {
+          "type": "capability",
+          "name": "Audience Segmentation Engine",
+          "owned_by": [
+            "SELF"
+          ],
+          "parent_part": [
+            {
+              "__ref": "prod:audyence"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "part-3",
+      "kind": "create_part",
+      "title": "Create capability: DSP Integrations",
+      "rationale": "Audyence distributes audiences across demand-side platforms (DSPs). Tracking this as a distinct capability allows the team to link customer support issues directly to integration health, replacing scattered HubSpot notes.",
+      "payload": {
+        "manifest_ref": "cap:dsp",
+        "parent_ref": "prod:audyence",
+        "body": {
+          "type": "capability",
+          "name": "DSP Integrations",
+          "owned_by": [
+            "SELF"
+          ],
+          "parent_part": [
+            {
+              "__ref": "prod:audyence"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "part-4",
+      "kind": "create_part",
+      "title": "Create capability: Data Marketplace & Onboarding",
+      "rationale": "Customer onboarding and data provider marketplace are key GTM motions for Audyence. Representing this capability lets CS and engineering collaborate on onboarding issues without leaving DevRev.",
+      "payload": {
+        "manifest_ref": "cap:marketplace",
+        "parent_ref": "prod:audyence",
+        "body": {
+          "type": "capability",
+          "name": "Data Marketplace & Onboarding",
+          "owned_by": [
+            "SELF"
+          ],
+          "parent_part": [
+            {
+              "__ref": "prod:audyence"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "part-5",
+      "kind": "create_part",
+      "title": "Create capability: Reporting & Analytics",
+      "rationale": "Media buyers and brand marketers expect detailed campaign and audience performance reporting. Surfacing this as a capability demonstrates DevRev's ability to tie feature requests from customers directly to roadmap items.",
+      "payload": {
+        "manifest_ref": "cap:reporting",
+        "parent_ref": "prod:audyence",
+        "body": {
+          "type": "capability",
+          "name": "Reporting & Analytics",
+          "owned_by": [
+            "SELF"
+          ],
+          "parent_part": [
+            {
+              "__ref": "prod:audyence"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "part-6",
+      "kind": "create_part",
+      "title": "Create feature: Lookalike Audience Builder",
+      "rationale": "A flagship feature for Audyence — generating lookalike segments from seed audiences. Tracking it as a feature under Segmentation Engine lets the team link inbound customer asks (tickets) directly to the feature roadmap.",
+      "payload": {
+        "manifest_ref": "feat:lookalike",
+        "parent_ref": "cap:segmentation",
+        "body": {
+          "type": "feature",
+          "name": "Lookalike Audience Builder",
+          "owned_by": [
+            "SELF"
+          ],
+          "parent_part": [
+            {
+              "__ref": "cap:segmentation"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "part-7",
+      "kind": "create_part",
+      "title": "Create feature: Intent Data Activation",
+      "rationale": "B2B intent data is central to Audyence's value prop. Representing this as a tracked feature enables product managers to see support signals and enhancement requests in one place, replacing HubSpot deal notes.",
+      "payload": {
+        "manifest_ref": "feat:intent",
+        "parent_ref": "cap:segmentation",
+        "body": {
+          "type": "feature",
+          "name": "Intent Data Activation",
+          "owned_by": [
+            "SELF"
+          ],
+          "parent_part": [
+            {
+              "__ref": "cap:segmentation"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "part-8",
+      "kind": "create_part",
+      "title": "Create feature: Trade Desk (TTD) Connector",
+      "rationale": "The Trade Desk is a primary DSP partner for Audyence. Modeling the connector as a feature lets support, CS, and engineering triage integration issues with full product context — a key HubSpot gap.",
+      "payload": {
+        "manifest_ref": "feat:ttd",
+        "parent_ref": "cap:dsp",
+        "body": {
+          "type": "feature",
+          "name": "The Trade Desk (TTD) Connector",
+          "owned_by": [
+            "SELF"
+          ],
+          "parent_part": [
+            {
+              "__ref": "cap:dsp"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "part-9",
+      "kind": "create_part",
+      "title": "Create feature: Customer Onboarding Workflow",
+      "rationale": "Audyence onboards agencies and brand marketers who need guided setup. Tracking onboarding as a feature surfaces friction points reported by rev-users (customers) directly to product engineering.",
+      "payload": {
+        "manifest_ref": "feat:onboarding",
+        "parent_ref": "cap:marketplace",
+        "body": {
+          "type": "feature",
+          "name": "Customer Onboarding Workflow",
+          "owned_by": [
+            "SELF"
+          ],
+          "parent_part": [
+            {
+              "__ref": "cap:marketplace"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "part-10",
+      "kind": "create_part",
+      "title": "Create feature: Campaign Performance Dashboard",
+      "rationale": "Media buyer personas expect real-time campaign reporting. Tracking this feature enables the team to close the loop between customer-reported dashboard bugs (tickets) and the engineering backlog.",
+      "payload": {
+        "manifest_ref": "feat:dashboard",
+        "parent_ref": "cap:reporting",
+        "body": {
+          "type": "feature",
+          "name": "Campaign Performance Dashboard",
+          "owned_by": [
+            "SELF"
+          ],
+          "parent_part": [
+            {
+              "__ref": "cap:reporting"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "part-11",
+      "kind": "create_part",
+      "title": "Create enhancement: Saved Segment Templates",
+      "rationale": "A concrete, customer-requested enhancement under the Lookalike Audience Builder. Demonstrates how DevRev tracks granular product improvements with full traceability from customer request to shipped enhancement.",
+      "payload": {
+        "manifest_ref": "enh:saved-segments",
+        "parent_ref": "feat:lookalike",
+        "body": {
+          "type": "enhancement",
+          "name": "Saved Segment Templates",
+          "owned_by": [
+            "SELF"
+          ],
+          "parent_part": [
+            {
+              "__ref": "feat:lookalike"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "part-12",
+      "kind": "create_part",
+      "title": "Create enhancement: CSV Audience Upload",
+      "rationale": "A frequent onboarding ask from new Audyence customers who want to seed audiences from their own CRM data. Logging this enhancement links the customer voice (rev-users) to the product roadmap.",
+      "payload": {
+        "manifest_ref": "enh:csv-upload",
+        "parent_ref": "feat:onboarding",
+        "body": {
+          "type": "enhancement",
+          "name": "CSV Audience Upload",
+          "owned_by": [
+            "SELF"
+          ],
+          "parent_part": [
+            {
+              "__ref": "feat:onboarding"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "acc-13",
+      "kind": "create_account",
+      "title": "Create account: Momentum Media Agency",
+      "rationale": "Representative agency customer for Audyence — a media buying shop activating B2B audiences for clients. Creating this account in DevRev replaces the HubSpot company record and links support, product, and revenue signals.",
+      "payload": {
+        "manifest_ref": "acc:momentum",
+        "body": {
+          "display_name": "Momentum Media Agency",
+          "description": "Full-service B2B media agency using Audyence for programmatic audience activation across DSPs.",
+          "tier": "enterprise",
+          "external_ref": "demo-acc-momentum"
+        }
+      }
+    },
+    {
+      "id": "acc-14",
+      "kind": "create_account",
+      "title": "Create account: Vertex Demand Partners",
+      "rationale": "Representative brand marketer / demand-side account. Showing multiple account types in the demo illustrates DevRev's CRM breadth to replace HubSpot's contact and company management.",
+      "payload": {
+        "manifest_ref": "acc:vertex",
+        "body": {
+          "display_name": "Vertex Demand Partners",
+          "description": "B2B brand marketing team leveraging Audyence intent data for account-based advertising campaigns.",
+          "tier": "growth",
+          "external_ref": "demo-acc-vertex"
+        }
+      }
+    },
+    {
+      "id": "revuser-15",
+      "kind": "create_rev_user",
+      "title": "Create rev-user: Jamie Caldwell (Momentum Media Agency)",
+      "rationale": "Customer contact at the agency account — maps directly to a HubSpot contact record. Rev-users in DevRev are first-class citizens linked to accounts, tickets, and revenue, unifying what HubSpot kept siloed from engineering.",
+      "payload": {
+        "manifest_ref": "ru:jamie",
+        "body": {
+          "display_name": "Jamie Caldwell",
+          "email": "jamie.caldwell@momentum-demo.com",
+          "external_ref": "demo-ru-jamie",
+          "account": {
+            "__ref": "acc:momentum"
+          }
+        }
+      }
+    },
+    {
+      "id": "revuser-16",
+      "kind": "create_rev_user",
+      "title": "Create rev-user: Priya Nair (Vertex Demand Partners)",
+      "rationale": "Customer contact at the brand marketer account. Including multiple rev-users demonstrates DevRev's multi-contact account model, a key capability Audyence needs to replace HubSpot's contact management.",
+      "payload": {
+        "manifest_ref": "ru:priya",
+        "body": {
+          "display_name": "Priya Nair",
+          "email": "priya.nair@vertex-demo.com",
+          "external_ref": "demo-ru-priya",
+          "account": {
+            "__ref": "acc:vertex"
+          }
+        }
+      }
+    },
+    {
+      "id": "work-17",
+      "kind": "create_work",
+      "title": "Create ticket: TTD connector sync delay — Momentum Media",
+      "rationale": "Real-world support scenario: an agency customer reports audience segments aren't syncing to The Trade Desk on time. Logging this as a ticket linked to a rev-user and product part shows how DevRev connects customer pain to engineering — replacing HubSpot support tickets that had no product traceability.",
+      "payload": {
+        "manifest_ref": "tic:ttd-sync",
+        "body": {
+          "type": "ticket",
+          "title": "TTD connector sync delay — audiences not activating within SLA",
+          "body": "Jamie Caldwell at Momentum Media reports that audience segments uploaded on Monday are not visible in TTD until 6+ hours later, missing campaign launch windows.",
+          "applies_to_part": {
+            "__ref": "feat:ttd"
+          },
+          "owned_by": [
+            "SELF"
+          ],
+          "rev_org": {
+            "__ref": "acc:momentum"
+          },
+          "external_ref": "demo-tic-ttd-sync"
+        }
+      }
+    },
+    {
+      "id": "work-18",
+      "kind": "create_work",
+      "title": "Create ticket: CSV upload fails for large seed files — Vertex",
+      "rationale": "Priya at Vertex Demand Partners hits an error uploading a 50k-row CSV to seed a lookalike audience. This ticket demonstrates the rev-user → ticket → feature traceability that replaces fragmented HubSpot support email threads.",
+      "payload": {
+        "manifest_ref": "tic:csv-fail",
+        "body": {
+          "type": "ticket",
+          "title": "CSV audience upload fails for files over 10k rows",
+          "body": "Priya Nair (Vertex Demand Partners) reports a 500 error when uploading CSV seed files larger than 10,000 rows. Smaller files succeed. Blocking onboarding of their key accounts list.",
+          "applies_to_part": {
+            "__ref": "feat:onboarding"
+          },
+          "owned_by": [
+            "SELF"
+          ],
+          "rev_org": {
+            "__ref": "acc:vertex"
+          },
+          "external_ref": "demo-tic-csv-fail"
+        }
+      }
+    },
+    {
+      "id": "work-19",
+      "kind": "create_work",
+      "title": "Create ticket: Dashboard not rendering segment overlap report",
+      "rationale": "A reporting bug that a media buyer persona would encounter. Linking this ticket to the Campaign Performance Dashboard feature closes the loop between the customer experience and the product team's backlog — impossible in HubSpot.",
+      "payload": {
+        "manifest_ref": "tic:dash-bug",
+        "body": {
+          "type": "ticket",
+          "title": "Segment overlap report renders blank on Campaign Performance Dashboard",
+          "body": "Multiple customers report the segment overlap visualization is blank after the v2.4 dashboard release. Workaround: export raw CSV. Affects reporting workflows for all active campaigns.",
+          "applies_to_part": {
+            "__ref": "feat:dashboard"
+          },
+          "owned_by": [
+            "SELF"
+          ],
+          "external_ref": "demo-tic-dash-bug"
+        }
+      }
+    },
+    {
+      "id": "work-20",
+      "kind": "create_work",
+      "title": "Create issue: Fix TTD audience sync pipeline latency",
+      "rationale": "Engineering issue spawned by the Momentum Media support ticket. This is the core DevRev 'aha moment' vs HubSpot — the same platform that logged the customer complaint now tracks the fix, with full bidirectional traceability.",
+      "payload": {
+        "manifest_ref": "iss:ttd-latency",
+        "body": {
+          "type": "issue",
+          "title": "Reduce TTD audience sync pipeline latency from ~6h to <30min",
+          "body": "Root cause: batch job runs every 6 hours. Migrate to event-driven sync triggered on segment publish. Affects enterprise SLA commitments.",
+          "applies_to_part": {
+            "__ref": "feat:ttd"
+          },
+          "owned_by": [
+            "SELF"
+          ],
+          "external_ref": "demo-iss-ttd-latency"
+        }
+      }
+    },
+    {
+      "id": "work-21",
+      "kind": "create_work",
+      "title": "Create issue: Increase CSV upload limit to 500k rows",
+      "rationale": "Engineering issue addressing Vertex's onboarding blocker. Demonstrates that a customer-reported ticket can spawn a product enhancement issue, keeping CS and engineering in sync without context-switching out of DevRev.",
+      "payload": {
+        "manifest_ref": "iss:csv-limit",
+        "body": {
+          "type": "issue",
+          "title": "Increase CSV audience upload file size limit from 10k to 500k rows",
+          "body": "Current 10k row hard limit is blocking enterprise onboarding. Requires chunked upload implementation and async processing queue. Linked to CSV Audience Upload enhancement.",
+          "applies_to_part": {
+            "__ref": "feat:onboarding"
+          },
+          "owned_by": [
+            "SELF"
+          ],
+          "external_ref": "demo-iss-csv-limit"
+        }
+      }
+    },
+    {
+      "id": "work-22",
+      "kind": "create_work",
+      "title": "Create issue: Fix segment overlap visualization rendering bug",
+      "rationale": "Engineering issue tied to the dashboard bug ticket and the v2.4 regression. Illustrates how DevRev's unified platform surfaces the customer impact of engineering regressions without needing a separate HubSpot-to-Jira hand-off.",
+      "payload": {
+        "manifest_ref": "iss:overlap-bug",
+        "body": {
+          "type": "issue",
+          "title": "Fix segment overlap chart rendering regression introduced in v2.4",
+          "body": "Null pointer exception in D3 chart component when overlap data set is empty. Introduced in v2.4 dashboard refactor. High customer visibility.",
+          "applies_to_part": {
+            "__ref": "feat:dashboard"
+          },
+          "owned_by": [
+            "SELF"
+          ],
+          "external_ref": "demo-iss-overlap-bug"
+        }
+      }
+    },
+    {
+      "id": "inc-23",
+      "kind": "create_incident",
+      "title": "Create incident: DSP Sync Outage — all connectors",
+      "rationale": "A production incident scenario relevant to Audyence's business: all DSP audience syncs are failing. DevRev's incident management linked to product parts and customer tickets demonstrates a single pane of glass that HubSpot could never provide for an engineering-heavy martech company.",
+      "payload": {
+        "manifest_ref": "inc:dsp-outage",
+        "body": {
+          "title": "P1 Incident: DSP audience sync service down — all connectors affected",
+          "body": "Audience sync microservice is returning 503s across all DSP connectors (TTD, DV360, Amazon DSP). Segments are not activating. Customer campaigns are at risk. Initiated runbook DSP-INC-001.",
+          "applies_to_parts": [
+            {
+              "__ref": "cap:dsp"
+            }
+          ],
+          "owned_by": [
+            "SELF"
+          ]
+        }
+      }
+    },
+    {
+      "id": "link-24",
+      "kind": "create_link",
+      "title": "Link: TTD sync ticket → TTD latency engineering issue",
+      "rationale": "Connects Momentum Media's support ticket directly to the engineering fix, giving CS reps real-time visibility into resolution progress — replacing the manual HubSpot-to-Jira status update loop.",
+      "payload": {
+        "source": {
+          "__ref": "tic:ttd-sync"
+        },
+        "target": {
+          "__ref": "iss:ttd-latency"
+        },
+        "link_type": "is_related_to"
+      }
+    },
+    {
+      "id": "link-25",
+      "kind": "create_link",
+      "title": "Link: CSV upload ticket → CSV limit engineering issue",
+      "rationale": "Traces Vertex Demand Partners' onboarding blocker ticket to the engineering backlog item. Demonstrates DevRev's customer-to-code traceability that is the key differentiator vs HubSpot for a product-led company like Audyence.",
+      "payload": {
+        "source": {
+          "__ref": "tic:csv-fail"
+        },
+        "target": {
+          "__ref": "iss:csv-limit"
+        },
+        "link_type": "is_related_to"
+      }
+    },
+    {
+      "id": "link-26",
+      "kind": "create_link",
+      "title": "Link: Dashboard bug ticket → overlap rendering issue",
+      "rationale": "Connects the customer-visible dashboard bug report to the engineering regression fix, enabling the support team to update customers automatically as the issue progresses through the sprint.",
+      "payload": {
+        "source": {
+          "__ref": "tic:dash-bug"
+        },
+        "target": {
+          "__ref": "iss:overlap-bug"
+        },
+        "link_type": "is_related_to"
+      }
+    },
+    {
+      "id": "link-27",
+      "kind": "create_link",
+      "title": "Link: DSP outage incident → TTD sync ticket",
+      "rationale": "Associates the active P1 incident with the pre-existing customer support ticket about TTD latency, showing that DevRev can surface at-risk accounts during an incident — a powerful CRM + ops story vs HubSpot.",
+      "payload": {
+        "source": {
+          "__ref": "inc:dsp-outage"
+        },
+        "target": {
+          "__ref": "tic:ttd-sync"
+        },
+        "link_type": "is_related_to"
+      }
+    },
+    {
+      "id": "link-28",
+      "kind": "create_link",
+      "title": "Link: CSV limit issue → CSV Upload enhancement",
+      "rationale": "Connects the active engineering fix to the product enhancement it will ship as, demonstrating end-to-end roadmap visibility from customer request (Priya's ticket) to enhancement to shipped feature.",
+      "payload": {
+        "source": {
+          "__ref": "iss:csv-limit"
+        },
+        "target": {
+          "__ref": "enh:csv-upload"
+        },
+        "link_type": "is_related_to"
+      }
+    },
+    {
+      "id": "link-29",
+      "kind": "create_link",
+      "title": "Link: Saved Segment Templates enhancement → Lookalike Audience Builder feature",
+      "rationale": "Explicitly surfaces the enhancement-to-feature relationship in the graph so product managers can walk stakeholders through the roadmap hierarchy during the demo, replacing static HubSpot deal notes with live product context.",
+      "payload": {
+        "source": {
+          "__ref": "enh:saved-segments"
+        },
+        "target": {
+          "__ref": "feat:lookalike"
+        },
+        "link_type": "is_related_to"
+      }
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "name": "Blueprint referencing CSV imports",
+  "description": "Use together with devrev-impl-agent plan/run --csv flags; defaults supply workspace + product context.",
+  "defaults": {
+    "owned_by": ["SELF"],
+    "rev_org": "REPLACE_WITH_REV_ORG_ID_OR_DISPLAY_ID",
+    "applies_to_part": "REPLACE_WITH_PRODUCT_PART_DISPLAY_ID"
+  },
+  "csv": [
+    {
+      "path": "./samples/contacts-sample.csv",
+      "entity": "contacts",
+      "column_map": {
+        "Email": "email",
+        "Name": "display_name"
+      }
+    }
+  ],
+  "ui_guidance": [
+    {
+      "title": "Before importing contacts",
+      "doc_links": ["https://developer.devrev.ai/beta/guides/account-creation"],
+      "steps": [
+        "Ensure each contact row can resolve a rev_org (workspace). Use blueprint.defaults.rev_org or a rev_org column in CSV.",
+        "If you only have accounts, create accounts first (CSV accounts entity or blueprint.accounts) then resolve the workspace ID."
+      ]
+    }
+  ]
+}

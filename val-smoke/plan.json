@@ -1,0 +1,117 @@
+{
+  "version": 1,
+  "title": "Smoke test (one of each)",
+  "summary": "Tiny blueprint for iterating on API contract validation. 1 product → 1 capability → 1 feature, plus 1 article, 1 ticket, 1 timeline entry. Run dia apply against a sandbox to surface field-shape issues fast.",
+  "steps": [
+    {
+      "id": "part-1",
+      "kind": "create_part",
+      "title": "Create product: Smoke Test Product",
+      "rationale": "Blueprint part",
+      "payload": {
+        "manifest_ref": "prod:smoke",
+        "body": {
+          "type": "product",
+          "name": "Smoke Test Product",
+          "owned_by": [
+            "SELF"
+          ]
+        }
+      }
+    },
+    {
+      "id": "part-2",
+      "kind": "create_part",
+      "title": "Create capability: Smoke Test Capability",
+      "rationale": "Blueprint part (parent ref: prod:smoke)",
+      "payload": {
+        "manifest_ref": "cap:smoke",
+        "parent_ref": "prod:smoke",
+        "body": {
+          "type": "capability",
+          "name": "Smoke Test Capability",
+          "owned_by": [
+            "SELF"
+          ],
+          "parent_part": {
+            "__ref": "prod:smoke"
+          }
+        }
+      }
+    },
+    {
+      "id": "part-3",
+      "kind": "create_part",
+      "title": "Create feature: Smoke Test Feature",
+      "rationale": "Blueprint part (parent ref: cap:smoke)",
+      "payload": {
+        "manifest_ref": "feat:smoke",
+        "parent_ref": "cap:smoke",
+        "body": {
+          "type": "feature",
+          "name": "Smoke Test Feature",
+          "owned_by": [
+            "SELF"
+          ],
+          "parent_part": {
+            "__ref": "cap:smoke"
+          }
+        }
+      }
+    },
+    {
+      "id": "art-4",
+      "kind": "create_article",
+      "title": "Create article: Smoke test article",
+      "rationale": "Blueprint article ref=art:smoke",
+      "payload": {
+        "manifest_ref": "art:smoke",
+        "body": {
+          "title": "Smoke test article",
+          "owned_by": [
+            "SELF"
+          ],
+          "resource": {}
+        }
+      }
+    },
+    {
+      "id": "work-5",
+      "kind": "create_work",
+      "title": "Create ticket: Smoke test ticket",
+      "rationale": "Blueprint work ref=tic:smoke",
+      "payload": {
+        "manifest_ref": "tic:smoke",
+        "body": {
+          "type": "ticket",
+          "title": "Smoke test ticket",
+          "body": "Validating works.create field contract.",
+          "applies_to_part": {
+            "__ref": "feat:smoke"
+          },
+          "owned_by": [
+            "SELF"
+          ],
+          "external_ref": "smoke-tic-1",
+          "severity": "high"
+        }
+      }
+    },
+    {
+      "id": "tle-6",
+      "kind": "create_timeline_entry",
+      "title": "Timeline entry on tic:smoke",
+      "rationale": "Blueprint timeline entry",
+      "payload": {
+        "body": {
+          "object": {
+            "__ref": "tic:smoke"
+          },
+          "body": "Hi — this is the customer message.",
+          "type": "timeline_comment",
+          "visibility": "external"
+        }
+      }
+    }
+  ]
+}

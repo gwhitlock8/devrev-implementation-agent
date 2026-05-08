@@ -1,0 +1,57 @@
+{
+  "name": "devrev-impl-agent",
+  "version": "0.2.0",
+  "description": "Dia — your DevRev implementation engineer. NL-first POC setup with Claude, deterministic execution via DevRev REST APIs, live-org awareness via DevRev MCP.",
+  "type": "module",
+  "bin": {
+    "devrev-impl-agent": "./dist/cli.js",
+    "dia": "./dist/cli.js"
+  },
+  "main": "./dist/cli.js",
+  "files": [
+    "dist",
+    "blueprints",
+    "docs",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsx src/cli.ts",
+    "lint": "eslint src",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run build"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "devrev",
+    "cli",
+    "anthropic",
+    "sales-engineering"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "@faker-js/faker": "^10.4.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "commander": "^13.1.0",
+    "dotenv": "^16.4.7",
+    "papaparse": "^5.5.2",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.21.0",
+    "@types/node": "^22.13.10",
+    "@types/papaparse": "^5.3.15",
+    "eslint": "^9.21.0",
+    "prettier": "^3.5.3",
+    "tsup": "^8.4.0",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2",
+    "typescript-eslint": "^8.26.1",
+    "vitest": "^3.0.8"
+  }
+}

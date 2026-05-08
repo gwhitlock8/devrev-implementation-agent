@@ -1,0 +1,1369 @@
+{
+  "version": 1,
+  "title": "Zendesk → DevRev migration POC",
+  "summary": "Parallel-run DevRev environment seeded for a Zendesk customer. Zendesk 'brands' and 'ticket forms' map to DevRev parts. Auto-detects Zendesk CSV exports (lowercase id/requester/assignee headers).",
+  "ui_guidance_sections": [
+    {
+      "title": "Map Zendesk priorities to DevRev",
+      "doc_links": [
+        "https://devrev.ai/docs/product/tickets"
+      ],
+      "steps": [
+        "Zendesk Urgent → DevRev priority p0",
+        "Zendesk High → p1",
+        "Zendesk Normal → p2",
+        "Zendesk Low → p3"
+      ]
+    },
+    {
+      "title": "Migrating Zendesk Help Center articles",
+      "doc_links": [
+        "https://developer.zendesk.com/api-reference/help_center/help-center-api/articles/"
+      ],
+      "steps": [
+        "Export Help Center articles from Zendesk via the Help Center API or the Admin export tool.",
+        "Convert the export to a CSV with at minimum 'title' and 'body' columns (Markdown body is fine — DevRev articles accept Markdown).",
+        "Add a blueprint csv entry: `{ \"path\": \"./zd-articles.csv\", \"entity\": \"articles\" }`.",
+        "Re-run `dia plan` and `dia apply` to ingest."
+      ]
+    },
+    {
+      "title": "Zendesk Brand → DevRev Part mapping",
+      "steps": [
+        "If your Zendesk org uses multiple Brands, model each Brand as a top-level capability under the Platform product.",
+        "Each Brand's ticket forms become features under that capability.",
+        "Adjust the parts hierarchy in this blueprint to mirror your Brand structure before applying."
+      ]
+    },
+    {
+      "title": "Importing your real Zendesk export",
+      "steps": [
+        "Export tickets from Zendesk Admin → Manage → Reports → Export.",
+        "Drop the CSV next to this blueprint and add a `csv` entry: `{ \"path\": \"./zd-tickets.csv\", \"entity\": \"tickets\" }`.",
+        "The agent auto-detects Zendesk headers (id, requester, assignee, group, priority) and applies the column map automatically."
+      ]
+    }
+  ],
+  "steps": [
+    {
+      "id": "part-1",
+      "kind": "create_part",
+      "title": "Create product: Platform",
+      "rationale": "Blueprint part",
+      "payload": {
+        "manifest_ref": "prod:platform",
+        "body": {
+          "type": "product",
+          "name": "Platform",
+          "owned_by": [
+            "SELF"
+          ]
+        }
+      }
+    },
+    {
+      "id": "part-2",
+      "kind": "create_part",
+      "title": "Create capability: Account & Identity",
+      "rationale": "Blueprint part (parent ref: prod:platform)",
+      "payload": {
+        "manifest_ref": "cap:account",
+        "parent_ref": "prod:platform",
+        "body": {
+          "type": "capability",
+          "name": "Account & Identity",
+          "owned_by": [
+            "SELF"
+          ],
+          "parent_part": {
+            "__ref": "prod:platform"
+          }
+        }
+      }
+    },
+    {
+      "id": "part-3",
+      "kind": "create_part",
+      "title": "Create capability: Product Features",
+      "rationale": "Blueprint part (parent ref: prod:platform)",
+      "payload": {
+        "manifest_ref": "cap:product-features",
+        "parent_ref": "prod:platform",
+        "body": {
+          "type": "capability",
+          "name": "Product Features",
+          "owned_by": [
+            "SELF"
+          ],
+          "parent_part": {
+            "__ref": "prod:platform"
+          }
+        }
+      }
+    },
+    {
+      "id": "part-4",
+      "kind": "create_part",
+      "title": "Create capability: Billing Operations",
+      "rationale": "Blueprint part (parent ref: prod:platform)",
+      "payload": {
+        "manifest_ref": "cap:billing-ops",
+        "parent_ref": "prod:platform",
+        "body": {
+          "type": "capability",
+          "name": "Billing Operations",
+          "owned_by": [
+            "SELF"
+          ],
+          "parent_part": {
+            "__ref": "prod:platform"
+          }
+        }
+      }
+    },
+    {
+      "id": "part-5",
+      "kind": "create_part",
+      "title": "Create feature: Login & Session",
+      "rationale": "Blueprint part (parent ref: cap:account)",
+      "payload": {
+        "manifest_ref": "feat:login",
+        "parent_ref": "cap:account",
+        "body": {
+          "type": "feature",
+          "name": "Login & Session",
+          "owned_by": [
+            "SELF"
+          ],
+          "parent_part": {
+            "__ref": "cap:account"
+          }
+        }
+      }
+    },
+    {
+      "id": "part-6",
+      "kind": "create_part",
+      "title": "Create feature: Profile management",
+      "rationale": "Blueprint part (parent ref: cap:account)",
+      "payload": {
+        "manifest_ref": "feat:profile",
+        "parent_ref": "cap:account",
+        "body": {
+          "type": "feature",
+          "name": "Profile management",
+          "owned_by": [
+            "SELF"
+          ],
+          "parent_part": {
+            "__ref": "cap:account"
+          }
+        }
+      }
+    },
+    {
+      "id": "part-7",
+      "kind": "create_part",
+      "title": "Create feature: Data exports",
+      "rationale": "Blueprint part (parent ref: cap:billing-ops)",
+      "payload": {
+        "manifest_ref": "feat:exports",
+        "parent_ref": "cap:billing-ops",
+        "body": {
+          "type": "feature",
+          "name": "Data exports",
+          "owned_by": [
+            "SELF"
+          ],
+          "parent_part": {
+            "__ref": "cap:billing-ops"
+          }
+        }
+      }
+    },
+    {
+      "id": "part-8",
+      "kind": "create_part",
+      "title": "Create feature: Notifications",
+      "rationale": "Blueprint part (parent ref: cap:product-features)",
+      "payload": {
+        "manifest_ref": "feat:notifications",
+        "parent_ref": "cap:product-features",
+        "body": {
+          "type": "feature",
+          "name": "Notifications",
+          "owned_by": [
+            "SELF"
+          ],
+          "parent_part": {
+            "__ref": "cap:product-features"
+          }
+        }
+      }
+    },
+    {
+      "id": "csv-art-9",
+      "kind": "create_article",
+      "title": "CSV article row 1: How to reset your password",
+      "rationale": "Imported from CSV",
+      "payload": {
+        "manifest_ref": "csv:art:1",
+        "body": {
+          "title": "How to reset your password",
+          "owned_by": [
+            "SELF"
+          ],
+          "resource": {}
+        }
+      }
+    },
+    {
+      "id": "csv-art-10",
+      "kind": "create_article",
+      "title": "CSV article row 2: Setting up SSO with Okta",
+      "rationale": "Imported from CSV",
+      "payload": {
+        "manifest_ref": "csv:art:2",
+        "body": {
+          "title": "Setting up SSO with Okta",
+          "owned_by": [
+            "SELF"
+          ],
+          "resource": {}
+        }
+      }
+    },
+    {
+      "id": "csv-art-11",
+      "kind": "create_article",
+      "title": "CSV article row 3: Configuring webhook endpoints",
+      "rationale": "Imported from CSV",
+      "payload": {
+        "manifest_ref": "csv:art:3",
+        "body": {
+          "title": "Configuring webhook endpoints",
+          "owned_by": [
+            "SELF"
+          ],
+          "resource": {}
+        }
+      }
+    },
+    {
+      "id": "csv-art-12",
+      "kind": "create_article",
+      "title": "CSV article row 4: Bulk-importing users via CSV",
+      "rationale": "Imported from CSV",
+      "payload": {
+        "manifest_ref": "csv:art:4",
+        "body": {
+          "title": "Bulk-importing users via CSV",
+          "owned_by": [
+            "SELF"
+          ],
+          "resource": {}
+        }
+      }
+    },
+    {
+      "id": "csv-art-13",
+      "kind": "create_article",
+      "title": "CSV article row 5: Troubleshooting failed deployments",
+      "rationale": "Imported from CSV",
+      "payload": {
+        "manifest_ref": "csv:art:5",
+        "body": {
+          "title": "Troubleshooting failed deployments",
+          "owned_by": [
+            "SELF"
+          ],
+          "resource": {}
+        }
+      }
+    },
+    {
+      "id": "csv-art-14",
+      "kind": "create_article",
+      "title": "CSV article row 6: Understanding API rate limits",
+      "rationale": "Imported from CSV",
+      "payload": {
+        "manifest_ref": "csv:art:6",
+        "body": {
+          "title": "Understanding API rate limits",
+          "owned_by": [
+            "SELF"
+          ],
+          "resource": {}
+        }
+      }
+    },
+    {
+      "id": "csv-art-15",
+      "kind": "create_article",
+      "title": "CSV article row 7: Enabling two-factor authentication",
+      "rationale": "Imported from CSV",
+      "payload": {
+        "manifest_ref": "csv:art:7",
+        "body": {
+          "title": "Enabling two-factor authentication",
+          "owned_by": [
+            "SELF"
+          ],
+          "resource": {}
+        }
+      }
+    },
+    {
+      "id": "csv-art-16",
+      "kind": "create_article",
+      "title": "CSV article row 8: Exporting your billing history",
+      "rationale": "Imported from CSV",
+      "payload": {
+        "manifest_ref": "csv:art:8",
+        "body": {
+          "title": "Exporting your billing history",
+          "owned_by": [
+            "SELF"
+          ],
+          "resource": {}
+        }
+      }
+    },
+    {
+      "id": "csv-art-17",
+      "kind": "create_article",
+      "title": "CSV article row 9: Custom domain & TLS setup",
+      "rationale": "Imported from CSV",
+      "payload": {
+        "manifest_ref": "csv:art:9",
+        "body": {
+          "title": "Custom domain & TLS setup",
+          "owned_by": [
+            "SELF"
+          ],
+          "resource": {}
+        }
+      }
+    },
+    {
+      "id": "csv-art-18",
+      "kind": "create_article",
+      "title": "CSV article row 10: Migrating from a legacy plan",
+      "rationale": "Imported from CSV",
+      "payload": {
+        "manifest_ref": "csv:art:10",
+        "body": {
+          "title": "Migrating from a legacy plan",
+          "owned_by": [
+            "SELF"
+          ],
+          "resource": {}
+        }
+      }
+    },
+    {
+      "id": "csv-art-19",
+      "kind": "create_article",
+      "title": "CSV article row 11: How to reset your password",
+      "rationale": "Imported from CSV",
+      "payload": {
+        "manifest_ref": "csv:art:11",
+        "body": {
+          "title": "How to reset your password",
+          "owned_by": [
+            "SELF"
+          ],
+          "resource": {}
+        }
+      }
+    },
+    {
+      "id": "csv-art-20",
+      "kind": "create_article",
+      "title": "CSV article row 12: Setting up SSO with Okta",
+      "rationale": "Imported from CSV",
+      "payload": {
+        "manifest_ref": "csv:art:12",
+        "body": {
+          "title": "Setting up SSO with Okta",
+          "owned_by": [
+            "SELF"
+          ],
+          "resource": {}
+        }
+      }
+    },
+    {
+      "id": "csv-work-21",
+      "kind": "create_work",
+      "title": "CSV tickets row 1: Cannot log in after SSO migration",
+      "rationale": "Imported from CSV",
+      "payload": {
+        "manifest_ref": "csv:tic:1",
+        "body": {
+          "type": "ticket",
+          "title": "Cannot log in after SSO migration",
+          "body": "Aegre caries aeger neque sufficio pectus acidus cornu amicitia ventosus. Strues substantia desidero. Deleniti atavus color tergiversatio una tyrannus sapiente conscendo.",
+          "applies_to_part": {
+            "__ref": "feat:login"
+          },
+          "owned_by": [
+            "SELF"
+          ],
+          "external_ref": "tic-1",
+          "severity": "medium"
+        }
+      }
+    },
+    {
+      "id": "csv-work-22",
+      "kind": "create_work",
+      "title": "CSV tickets row 2: Webhook deliveries failing intermittently",
+      "rationale": "Imported from CSV",
+      "payload": {
+        "manifest_ref": "csv:tic:2",
+        "body": {
+          "type": "ticket",
+          "title": "Webhook deliveries failing intermittently",
+          "body": "Artificiose ocer carpo perferendis chirographum. Tempore bonus cultellus accendo debitis aequus cotidie. Cura collum sed tremo viridis doloribus vulariter.",
+          "applies_to_part": {
+            "__ref": "feat:profile"
+          },
+          "owned_by": [
+            "SELF"
+          ],
+          "external_ref": "tic-2",
+          "severity": "medium"
+        }
+      }
+    },
+    {
+      "id": "csv-work-23",
+      "kind": "create_work",
+      "title": "CSV tickets row 3: Billing portal returns 500 on invoice export",
+      "rationale": "Imported from CSV",
+      "payload": {
+        "manifest_ref": "csv:tic:3",
+        "body": {
+          "type": "ticket",
+          "title": "Billing portal returns 500 on invoice export",
+          "body": "Pectus conservo denego bonus virga amor aer ater sursum vallum. Sint excepturi vel vester pectus cultellus candidus claudeo.",
+          "applies_to_part": {
+            "__ref": "feat:exports"
+          },
+          "owned_by": [
+            "SELF"
+          ],
+          "external_ref": "tic-3",
+          "severity": "high"
+        }
+      }
+    },
+    {
+      "id": "csv-work-24",
+      "kind": "create_work",
+      "title": "CSV tickets row 4: API rate limit exceeded during bulk sync",
+      "rationale": "Imported from CSV",
+      "payload": {
+        "manifest_ref": "csv:tic:4",
+        "body": {
+          "type": "ticket",
+          "title": "API rate limit exceeded during bulk sync",
+          "body": "Asperiores adamo thalassinus aliquid. Pax facere aggero sufficio vulgivagus varius. Tibi tabula vulnus coepi atqui cito excepturi verbum.",
+          "applies_to_part": {
+            "__ref": "feat:notifications"
+          },
+          "owned_by": [
+            "SELF"
+          ],
+          "external_ref": "tic-4",
+          "severity": "high"
+        }
+      }
+    },
+    {
+      "id": "csv-work-25",
+      "kind": "create_work",
+      "title": "CSV tickets row 5: Two-factor authentication code not arriving",
+      "rationale": "Imported from CSV",
+      "payload": {
+        "manifest_ref": "csv:tic:5",
+        "body": {
+          "type": "ticket",
+          "title": "Two-factor authentication code not arriving",
+          "body": "Cohors impedit a ultra comitatus coma valeo adipiscor abeo. Amitto adiuvo bestia abutor adsuesco. Advenio cubo vociferor cogito audentia amita derelinquo adaugeo. Baiulus balbus laudantium audax vaco.",
+          "applies_to_part": {
+            "__ref": "feat:login"
+          },
+          "owned_by": [
+            "SELF"
+          ],
+          "external_ref": "tic-5",
+          "severity": "medium"
+        }
+      }
+    },
+    {
+      "id": "csv-work-26",
+      "kind": "create_work",
+      "title": "CSV tickets row 6: Dashboard charts render blank for last 24h",
+      "rationale": "Imported from CSV",
+      "payload": {
+        "manifest_ref": "csv:tic:6",
+        "body": {
+          "type": "ticket",
+          "title": "Dashboard charts render blank for last 24h",
+          "body": "Dedecor sunt uxor vere amplexus nam cado. Coniuratio dedecor tolero corona. Tripudio alioqui venustas paulatim expedita trado.",
+          "applies_to_part": {
+            "__ref": "feat:profile"
+          },
+          "owned_by": [
+            "SELF"
+          ],
+          "external_ref": "tic-6",
+          "severity": "high"
+        }
+      }
+    },
+    {
+      "id": "csv-work-27",
+      "kind": "create_work",
+      "title": "CSV tickets row 7: User invitation email lands in spam",
+      "rationale": "Imported from CSV",
+      "payload": {
+        "manifest_ref": "csv:tic:7",
+        "body": {
+          "type": "ticket",
+          "title": "User invitation email lands in spam",
+          "body": "Approbo coerceo territo vis. Teres varietas thesaurus cursim utrum ater vesco venio benigne.",
+          "applies_to_part": {
+            "__ref": "feat:exports"
+          },
+          "owned_by": [
+            "SELF"
+          ],
+          "external_ref": "tic-7",
+          "severity": "medium"
+        }
+      }
+    },
+    {
+      "id": "csv-work-28",
+      "kind": "create_work",
+      "title": "CSV tickets row 8: Password reset link expired immediately",
+      "rationale": "Imported from CSV",
+      "payload": {
+        "manifest_ref": "csv:tic:8",
+        "body": {
+          "type": "ticket",
+          "title": "Password reset link expired immediately",
+          "body": "Cohibeo caelestis cimentarius subiungo collum. Vesper sunt spes vinum molestias vespillo usitas cursus vito solium.",
+          "applies_to_part": {
+            "__ref": "feat:notifications"
+          },
+          "owned_by": [
+            "SELF"
+          ],
+          "external_ref": "tic-8",
+          "severity": "blocker"
+        }
+      }
+    },
+    {
+      "id": "csv-work-29",
+      "kind": "create_work",
+      "title": "CSV tickets row 9: Cannot upload CSV larger than 10MB",
+      "rationale": "Imported from CSV",
+      "payload": {
+        "manifest_ref": "csv:tic:9",
+        "body": {
+          "type": "ticket",
+          "title": "Cannot upload CSV larger than 10MB",
+          "body": "Aggredior suadeo defungo crepusculum ab summa conturbo vinculum defetiscor. Cresco cur degenero color coniuratio tabernus antiquus timor delectus. Argumentum creator aegre coaegresco voluptas succurro caveo modi.",
+          "applies_to_part": {
+            "__ref": "feat:login"
+          },
+          "owned_by": [
+            "SELF"
+          ],
+          "external_ref": "tic-9",
+          "severity": "medium"
+        }
+      }
+    },
+    {
+      "id": "csv-work-30",
+      "kind": "create_work",
+      "title": "CSV tickets row 10: Mobile app crashes on cold start",
+      "rationale": "Imported from CSV",
+      "payload": {
+        "manifest_ref": "csv:tic:10",
+        "body": {
+          "type": "ticket",
+          "title": "Mobile app crashes on cold start",
+          "body": "Ventus deleniti delectus quod concedo ex assentator umquam apostolus turba. Cito tantum derideo claro adhaero. Ambulo atrox anser vaco complectus a.",
+          "applies_to_part": {
+            "__ref": "feat:profile"
+          },
+          "owned_by": [
+            "SELF"
+          ],
+          "external_ref": "tic-10",
+          "severity": "medium"
+        }
+      }
+    },
+    {
+      "id": "csv-work-31",
+      "kind": "create_work",
+      "title": "CSV tickets row 11: Slack integration disconnected without warning",
+      "rationale": "Imported from CSV",
+      "payload": {
+        "manifest_ref": "csv:tic:11",
+        "body": {
+          "type": "ticket",
+          "title": "Slack integration disconnected without warning",
+          "body": "Creo aeneus adulatio solutio. Clam deripio suscipio tristis. Desidero annus vos tendo candidus abeo.",
+          "applies_to_part": {
+            "__ref": "feat:exports"
+          },
+          "owned_by": [
+            "SELF"
+          ],
+          "external_ref": "tic-11",
+          "severity": "high"
+        }
+      }
+    },
+    {
+      "id": "csv-work-32",
+      "kind": "create_work",
+      "title": "CSV tickets row 12: Search returns stale results after edit",
+      "rationale": "Imported from CSV",
+      "payload": {
+        "manifest_ref": "csv:tic:12",
+        "body": {
+          "type": "ticket",
+          "title": "Search returns stale results after edit",
+          "body": "Vaco ventosus strenuus laborum vita demonstro defero somniculosus. Tempora laborum careo coruscus adfectus adsum blandior.",
+          "applies_to_part": {
+            "__ref": "feat:notifications"
+          },
+          "owned_by": [
+            "SELF"
+          ],
+          "external_ref": "tic-12",
+          "severity": "medium"
+        }
+      }
+    },
+    {
+      "id": "csv-work-33",
+      "kind": "create_work",
+      "title": "CSV tickets row 13: Audit log missing recent admin actions",
+      "rationale": "Imported from CSV",
+      "payload": {
+        "manifest_ref": "csv:tic:13",
+        "body": {
+          "type": "ticket",
+          "title": "Audit log missing recent admin actions",
+          "body": "Advoco statim curriculum admoneo casso arbor artificiose nam cado. Sufficio atque communis defluo coepi advenio. Subito solio maiores vos.",
+          "applies_to_part": {
+            "__ref": "feat:login"
+          },
+          "owned_by": [
+            "SELF"
+          ],
+          "external_ref": "tic-13",
+          "severity": "medium"
+        }
+      }
+    },
+    {
+      "id": "csv-work-34",
+      "kind": "create_work",
+      "title": "CSV tickets row 14: Custom domain TLS handshake fails",
+      "rationale": "Imported from CSV",
+      "payload": {
+        "manifest_ref": "csv:tic:14",
+        "body": {
+          "type": "ticket",
+          "title": "Custom domain TLS handshake fails",
+          "body": "Maiores abeo vulnus templum capto. Delectatio cedo culpa supplanto consuasor. Delibero abduco molestiae cavus.",
+          "applies_to_part": {
+            "__ref": "feat:profile"
+          },
+          "owned_by": [
+            "SELF"
+          ],
+          "external_ref": "tic-14",
+          "severity": "medium"
+        }
+      }
+    },
+    {
+      "id": "csv-work-35",
+      "kind": "create_work",
+      "title": "CSV tickets row 15: Report scheduling stuck in pending",
+      "rationale": "Imported from CSV",
+      "payload": {
+        "manifest_ref": "csv:tic:15",
+        "body": {
+          "type": "ticket",
+          "title": "Report scheduling stuck in pending",
+          "body": "Nulla aegrotatio venia ventito toties vel titulus. Curso defetiscor timor amita. Voco advoco somniculosus tricesimus animadverto causa denique velut coaegresco. Validus tempore truculenter corroboro vitiosus debitis arca sulum.",
+          "applies_to_part": {
+            "__ref": "feat:exports"
+          },
+          "owned_by": [
+            "SELF"
+          ],
+          "external_ref": "tic-15",
+          "severity": "high"
+        }
+      }
+    },
+    {
+      "id": "csv-work-36",
+      "kind": "create_work",
+      "title": "CSV tickets row 16: Cannot log in after SSO migration (motionless)",
+      "rationale": "Imported from CSV",
+      "payload": {
+        "manifest_ref": "csv:tic:16",
+        "body": {
+          "type": "ticket",
+          "title": "Cannot log in after SSO migration (motionless)",
+          "body": "Vorax trepide quisquam auctus videlicet strenuus. Demo eius magnam admiratio calco adhuc ulterius sublime comburo creo.",
+          "applies_to_part": {
+            "__ref": "feat:notifications"
+          },
+          "owned_by": [
+            "SELF"
+          ],
+          "external_ref": "tic-16",
+          "severity": "medium"
+        }
+      }
+    },
+    {
+      "id": "csv-work-37",
+      "kind": "create_work",
+      "title": "CSV tickets row 17: Webhook deliveries failing intermittently (near)",
+      "rationale": "Imported from CSV",
+      "payload": {
+        "manifest_ref": "csv:tic:17",
+        "body": {
+          "type": "ticket",
+          "title": "Webhook deliveries failing intermittently (near)",
+          "body": "Tener creta est ceno tollo debeo currus comparo amet. Baiulus acervus conscendo verbum. Consuasor defessus abundans alioqui uredo carpo amitto cinis. Alii complectus thesaurus infit spes vulgus tergum vigilo adopto certe.",
+          "applies_to_part": {
+            "__ref": "feat:login"
+          },
+          "owned_by": [
+            "SELF"
+          ],
+          "external_ref": "tic-17",
+          "severity": "blocker"
+        }
+      }
+    },
+    {
+      "id": "csv-work-38",
+      "kind": "create_work",
+      "title": "CSV tickets row 18: Billing portal returns 500 on invoice export (advanced)",
+      "rationale": "Imported from CSV",
+      "payload": {
+        "manifest_ref": "csv:tic:18",
+        "body": {
+          "type": "ticket",
+          "title": "Billing portal returns 500 on invoice export (advanced)",
+          "body": "Facere contego decimus. Thermae bis deprimo surgo sollers distinctio capio assentator. Ventito tantillus non eligendi tutamen ipsam urbs coerceo combibo denique. Vestigium delinquo quam speciosus.",
+          "applies_to_part": {
+            "__ref": "feat:profile"
+          },
+          "owned_by": [
+            "SELF"
+          ],
+          "external_ref": "tic-18",
+          "severity": "medium"
+        }
+      }
+    },
+    {
+      "id": "tle-gen-39",
+      "kind": "create_timeline_entry",
+      "title": "Auto-comment on csv:tic:1",
+      "rationale": "Generated conversation (saas-support, per_ticket=2)",
+      "payload": {
+        "body": {
+          "object": {
+            "__ref": "csv:tic:1"
+          },
+          "body": "I can't log in after the SSO migration was applied to our org. The portal just bounces me back to the login screen.",
+          "type": "timeline_comment",
+          "visibility": "external"
+        }
+      }
+    },
+    {
+      "id": "tle-gen-40",
+      "kind": "create_timeline_entry",
+      "title": "Auto-comment on csv:tic:1",
+      "rationale": "Generated conversation (saas-support, per_ticket=2)",
+      "payload": {
+        "body": {
+          "object": {
+            "__ref": "csv:tic:1"
+          },
+          "body": "Thanks for reaching out — this usually happens when the SAML attribute mapping for `email` isn't preserved across the migration. I've reset your session; can you try one fresh login and let me know if it persists?",
+          "type": "timeline_comment",
+          "visibility": "external"
+        }
+      }
+    },
+    {
+      "id": "tle-gen-41",
+      "kind": "create_timeline_entry",
+      "title": "Auto-comment on csv:tic:2",
+      "rationale": "Generated conversation (saas-support, per_ticket=2)",
+      "payload": {
+        "body": {
+          "object": {
+            "__ref": "csv:tic:2"
+          },
+          "body": "I can't log in after the SSO migration was applied to our org. The portal just bounces me back to the login screen.",
+          "type": "timeline_comment",
+          "visibility": "external"
+        }
+      }
+    },
+    {
+      "id": "tle-gen-42",
+      "kind": "create_timeline_entry",
+      "title": "Auto-comment on csv:tic:2",
+      "rationale": "Generated conversation (saas-support, per_ticket=2)",
+      "payload": {
+        "body": {
+          "object": {
+            "__ref": "csv:tic:2"
+          },
+          "body": "Thanks for reaching out — this usually happens when the SAML attribute mapping for `email` isn't preserved across the migration. I've reset your session; can you try one fresh login and let me know if it persists?",
+          "type": "timeline_comment",
+          "visibility": "external"
+        }
+      }
+    },
+    {
+      "id": "tle-gen-43",
+      "kind": "create_timeline_entry",
+      "title": "Auto-comment on csv:tic:3",
+      "rationale": "Generated conversation (saas-support, per_ticket=2)",
+      "payload": {
+        "body": {
+          "object": {
+            "__ref": "csv:tic:3"
+          },
+          "body": "I can't log in after the SSO migration was applied to our org. The portal just bounces me back to the login screen.",
+          "type": "timeline_comment",
+          "visibility": "external"
+        }
+      }
+    },
+    {
+      "id": "tle-gen-44",
+      "kind": "create_timeline_entry",
+      "title": "Auto-comment on csv:tic:3",
+      "rationale": "Generated conversation (saas-support, per_ticket=2)",
+      "payload": {
+        "body": {
+          "object": {
+            "__ref": "csv:tic:3"
+          },
+          "body": "Thanks for reaching out — this usually happens when the SAML attribute mapping for `email` isn't preserved across the migration. I've reset your session; can you try one fresh login and let me know if it persists?",
+          "type": "timeline_comment",
+          "visibility": "external"
+        }
+      }
+    },
+    {
+      "id": "tle-gen-45",
+      "kind": "create_timeline_entry",
+      "title": "Auto-comment on csv:tic:4",
+      "rationale": "Generated conversation (saas-support, per_ticket=2)",
+      "payload": {
+        "body": {
+          "object": {
+            "__ref": "csv:tic:4"
+          },
+          "body": "We're hitting the API rate limit during our weekend bulk sync and dropping records.",
+          "type": "timeline_comment",
+          "visibility": "external"
+        }
+      }
+    },
+    {
+      "id": "tle-gen-46",
+      "kind": "create_timeline_entry",
+      "title": "Auto-comment on csv:tic:4",
+      "rationale": "Generated conversation (saas-support, per_ticket=2)",
+      "payload": {
+        "body": {
+          "object": {
+            "__ref": "csv:tic:4"
+          },
+          "body": "Understood — your tier defaults to 60 RPM but we can temporarily lift you to 240 RPM during the sync window. I've opened that bump for the next 72 hours. Long-term, the docs on cursor-based pagination might help reduce the per-record call count.",
+          "type": "timeline_comment",
+          "visibility": "external"
+        }
+      }
+    },
+    {
+      "id": "tle-gen-47",
+      "kind": "create_timeline_entry",
+      "title": "Auto-comment on csv:tic:5",
+      "rationale": "Generated conversation (saas-support, per_ticket=2)",
+      "payload": {
+        "body": {
+          "object": {
+            "__ref": "csv:tic:5"
+          },
+          "body": "We're hitting the API rate limit during our weekend bulk sync and dropping records.",
+          "type": "timeline_comment",
+          "visibility": "external"
+        }
+      }
+    },
+    {
+      "id": "tle-gen-48",
+      "kind": "create_timeline_entry",
+      "title": "Auto-comment on csv:tic:5",
+      "rationale": "Generated conversation (saas-support, per_ticket=2)",
+      "payload": {
+        "body": {
+          "object": {
+            "__ref": "csv:tic:5"
+          },
+          "body": "Understood — your tier defaults to 60 RPM but we can temporarily lift you to 240 RPM during the sync window. I've opened that bump for the next 72 hours. Long-term, the docs on cursor-based pagination might help reduce the per-record call count.",
+          "type": "timeline_comment",
+          "visibility": "external"
+        }
+      }
+    },
+    {
+      "id": "tle-gen-49",
+      "kind": "create_timeline_entry",
+      "title": "Auto-comment on csv:tic:6",
+      "rationale": "Generated conversation (saas-support, per_ticket=2)",
+      "payload": {
+        "body": {
+          "object": {
+            "__ref": "csv:tic:6"
+          },
+          "body": "We're hitting the API rate limit during our weekend bulk sync and dropping records.",
+          "type": "timeline_comment",
+          "visibility": "external"
+        }
+      }
+    },
+    {
+      "id": "tle-gen-50",
+      "kind": "create_timeline_entry",
+      "title": "Auto-comment on csv:tic:6",
+      "rationale": "Generated conversation (saas-support, per_ticket=2)",
+      "payload": {
+        "body": {
+          "object": {
+            "__ref": "csv:tic:6"
+          },
+          "body": "Understood — your tier defaults to 60 RPM but we can temporarily lift you to 240 RPM during the sync window. I've opened that bump for the next 72 hours. Long-term, the docs on cursor-based pagination might help reduce the per-record call count.",
+          "type": "timeline_comment",
+          "visibility": "external"
+        }
+      }
+    },
+    {
+      "id": "tle-gen-51",
+      "kind": "create_timeline_entry",
+      "title": "Auto-comment on csv:tic:7",
+      "rationale": "Generated conversation (saas-support, per_ticket=2)",
+      "payload": {
+        "body": {
+          "object": {
+            "__ref": "csv:tic:7"
+          },
+          "body": "We're hitting the API rate limit during our weekend bulk sync and dropping records.",
+          "type": "timeline_comment",
+          "visibility": "external"
+        }
+      }
+    },
+    {
+      "id": "tle-gen-52",
+      "kind": "create_timeline_entry",
+      "title": "Auto-comment on csv:tic:7",
+      "rationale": "Generated conversation (saas-support, per_ticket=2)",
+      "payload": {
+        "body": {
+          "object": {
+            "__ref": "csv:tic:7"
+          },
+          "body": "Understood — your tier defaults to 60 RPM but we can temporarily lift you to 240 RPM during the sync window. I've opened that bump for the next 72 hours. Long-term, the docs on cursor-based pagination might help reduce the per-record call count.",
+          "type": "timeline_comment",
+          "visibility": "external"
+        }
+      }
+    },
+    {
+      "id": "tle-gen-53",
+      "kind": "create_timeline_entry",
+      "title": "Auto-comment on csv:tic:8",
+      "rationale": "Generated conversation (saas-support, per_ticket=2)",
+      "payload": {
+        "body": {
+          "object": {
+            "__ref": "csv:tic:8"
+          },
+          "body": "We're hitting the API rate limit during our weekend bulk sync and dropping records.",
+          "type": "timeline_comment",
+          "visibility": "external"
+        }
+      }
+    },
+    {
+      "id": "tle-gen-54",
+      "kind": "create_timeline_entry",
+      "title": "Auto-comment on csv:tic:8",
+      "rationale": "Generated conversation (saas-support, per_ticket=2)",
+      "payload": {
+        "body": {
+          "object": {
+            "__ref": "csv:tic:8"
+          },
+          "body": "Understood — your tier defaults to 60 RPM but we can temporarily lift you to 240 RPM during the sync window. I've opened that bump for the next 72 hours. Long-term, the docs on cursor-based pagination might help reduce the per-record call count.",
+          "type": "timeline_comment",
+          "visibility": "external"
+        }
+      }
+    },
+    {
+      "id": "tle-gen-55",
+      "kind": "create_timeline_entry",
+      "title": "Auto-comment on csv:tic:9",
+      "rationale": "Generated conversation (saas-support, per_ticket=2)",
+      "payload": {
+        "body": {
+          "object": {
+            "__ref": "csv:tic:9"
+          },
+          "body": "Our webhook deliveries have been failing intermittently since this morning. Receiving 500s from your endpoint maybe 1 in 5 times.",
+          "type": "timeline_comment",
+          "visibility": "external"
+        }
+      }
+    },
+    {
+      "id": "tle-gen-56",
+      "kind": "create_timeline_entry",
+      "title": "Auto-comment on csv:tic:9",
+      "rationale": "Generated conversation (saas-support, per_ticket=2)",
+      "payload": {
+        "body": {
+          "object": {
+            "__ref": "csv:tic:9"
+          },
+          "body": "Appreciate the details. We're tracking a transient issue with one upstream worker pool. I've routed your account to a healthy region while we drain the bad node — please confirm if delivery success rate improves over the next 30 min.",
+          "type": "timeline_comment",
+          "visibility": "external"
+        }
+      }
+    },
+    {
+      "id": "tle-gen-57",
+      "kind": "create_timeline_entry",
+      "title": "Auto-comment on csv:tic:10",
+      "rationale": "Generated conversation (saas-support, per_ticket=2)",
+      "payload": {
+        "body": {
+          "object": {
+            "__ref": "csv:tic:10"
+          },
+          "body": "Invoice export keeps returning a 500 error. I tried it twice this morning and once last night.",
+          "type": "timeline_comment",
+          "visibility": "external"
+        }
+      }
+    },
+    {
+      "id": "tle-gen-58",
+      "kind": "create_timeline_entry",
+      "title": "Auto-comment on csv:tic:10",
+      "rationale": "Generated conversation (saas-support, per_ticket=2)",
+      "payload": {
+        "body": {
+          "object": {
+            "__ref": "csv:tic:10"
+          },
+          "body": "Sorry about that. The 500 on invoice export is a memory regression we've identified — engineering has a fix queued for today's deploy. In the meantime I can email you the PDF directly, what address should I send it to?",
+          "type": "timeline_comment",
+          "visibility": "external"
+        }
+      }
+    },
+    {
+      "id": "tle-gen-59",
+      "kind": "create_timeline_entry",
+      "title": "Auto-comment on csv:tic:11",
+      "rationale": "Generated conversation (saas-support, per_ticket=2)",
+      "payload": {
+        "body": {
+          "object": {
+            "__ref": "csv:tic:11"
+          },
+          "body": "I can't log in after the SSO migration was applied to our org. The portal just bounces me back to the login screen.",
+          "type": "timeline_comment",
+          "visibility": "external"
+        }
+      }
+    },
+    {
+      "id": "tle-gen-60",
+      "kind": "create_timeline_entry",
+      "title": "Auto-comment on csv:tic:11",
+      "rationale": "Generated conversation (saas-support, per_ticket=2)",
+      "payload": {
+        "body": {
+          "object": {
+            "__ref": "csv:tic:11"
+          },
+          "body": "Thanks for reaching out — this usually happens when the SAML attribute mapping for `email` isn't preserved across the migration. I've reset your session; can you try one fresh login and let me know if it persists?",
+          "type": "timeline_comment",
+          "visibility": "external"
+        }
+      }
+    },
+    {
+      "id": "tle-gen-61",
+      "kind": "create_timeline_entry",
+      "title": "Auto-comment on csv:tic:12",
+      "rationale": "Generated conversation (saas-support, per_ticket=2)",
+      "payload": {
+        "body": {
+          "object": {
+            "__ref": "csv:tic:12"
+          },
+          "body": "Our webhook deliveries have been failing intermittently since this morning. Receiving 500s from your endpoint maybe 1 in 5 times.",
+          "type": "timeline_comment",
+          "visibility": "external"
+        }
+      }
+    },
+    {
+      "id": "tle-gen-62",
+      "kind": "create_timeline_entry",
+      "title": "Auto-comment on csv:tic:12",
+      "rationale": "Generated conversation (saas-support, per_ticket=2)",
+      "payload": {
+        "body": {
+          "object": {
+            "__ref": "csv:tic:12"
+          },
+          "body": "Appreciate the details. We're tracking a transient issue with one upstream worker pool. I've routed your account to a healthy region while we drain the bad node — please confirm if delivery success rate improves over the next 30 min.",
+          "type": "timeline_comment",
+          "visibility": "external"
+        }
+      }
+    },
+    {
+      "id": "tle-gen-63",
+      "kind": "create_timeline_entry",
+      "title": "Auto-comment on csv:tic:13",
+      "rationale": "Generated conversation (saas-support, per_ticket=2)",
+      "payload": {
+        "body": {
+          "object": {
+            "__ref": "csv:tic:13"
+          },
+          "body": "Our webhook deliveries have been failing intermittently since this morning. Receiving 500s from your endpoint maybe 1 in 5 times.",
+          "type": "timeline_comment",
+          "visibility": "external"
+        }
+      }
+    },
+    {
+      "id": "tle-gen-64",
+      "kind": "create_timeline_entry",
+      "title": "Auto-comment on csv:tic:13",
+      "rationale": "Generated conversation (saas-support, per_ticket=2)",
+      "payload": {
+        "body": {
+          "object": {
+            "__ref": "csv:tic:13"
+          },
+          "body": "Appreciate the details. We're tracking a transient issue with one upstream worker pool. I've routed your account to a healthy region while we drain the bad node — please confirm if delivery success rate improves over the next 30 min.",
+          "type": "timeline_comment",
+          "visibility": "external"
+        }
+      }
+    },
+    {
+      "id": "tle-gen-65",
+      "kind": "create_timeline_entry",
+      "title": "Auto-comment on csv:tic:14",
+      "rationale": "Generated conversation (saas-support, per_ticket=2)",
+      "payload": {
+        "body": {
+          "object": {
+            "__ref": "csv:tic:14"
+          },
+          "body": "Invoice export keeps returning a 500 error. I tried it twice this morning and once last night.",
+          "type": "timeline_comment",
+          "visibility": "external"
+        }
+      }
+    },
+    {
+      "id": "tle-gen-66",
+      "kind": "create_timeline_entry",
+      "title": "Auto-comment on csv:tic:14",
+      "rationale": "Generated conversation (saas-support, per_ticket=2)",
+      "payload": {
+        "body": {
+          "object": {
+            "__ref": "csv:tic:14"
+          },
+          "body": "Sorry about that. The 500 on invoice export is a memory regression we've identified — engineering has a fix queued for today's deploy. In the meantime I can email you the PDF directly, what address should I send it to?",
+          "type": "timeline_comment",
+          "visibility": "external"
+        }
+      }
+    },
+    {
+      "id": "tle-gen-67",
+      "kind": "create_timeline_entry",
+      "title": "Auto-comment on csv:tic:15",
+      "rationale": "Generated conversation (saas-support, per_ticket=2)",
+      "payload": {
+        "body": {
+          "object": {
+            "__ref": "csv:tic:15"
+          },
+          "body": "I can't log in after the SSO migration was applied to our org. The portal just bounces me back to the login screen.",
+          "type": "timeline_comment",
+          "visibility": "external"
+        }
+      }
+    },
+    {
+      "id": "tle-gen-68",
+      "kind": "create_timeline_entry",
+      "title": "Auto-comment on csv:tic:15",
+      "rationale": "Generated conversation (saas-support, per_ticket=2)",
+      "payload": {
+        "body": {
+          "object": {
+            "__ref": "csv:tic:15"
+          },
+          "body": "Thanks for reaching out — this usually happens when the SAML attribute mapping for `email` isn't preserved across the migration. I've reset your session; can you try one fresh login and let me know if it persists?",
+          "type": "timeline_comment",
+          "visibility": "external"
+        }
+      }
+    },
+    {
+      "id": "tle-gen-69",
+      "kind": "create_timeline_entry",
+      "title": "Auto-comment on csv:tic:16",
+      "rationale": "Generated conversation (saas-support, per_ticket=2)",
+      "payload": {
+        "body": {
+          "object": {
+            "__ref": "csv:tic:16"
+          },
+          "body": "Invoice export keeps returning a 500 error. I tried it twice this morning and once last night.",
+          "type": "timeline_comment",
+          "visibility": "external"
+        }
+      }
+    },
+    {
+      "id": "tle-gen-70",
+      "kind": "create_timeline_entry",
+      "title": "Auto-comment on csv:tic:16",
+      "rationale": "Generated conversation (saas-support, per_ticket=2)",
+      "payload": {
+        "body": {
+          "object": {
+            "__ref": "csv:tic:16"
+          },
+          "body": "Sorry about that. The 500 on invoice export is a memory regression we've identified — engineering has a fix queued for today's deploy. In the meantime I can email you the PDF directly, what address should I send it to?",
+          "type": "timeline_comment",
+          "visibility": "external"
+        }
+      }
+    },
+    {
+      "id": "tle-gen-71",
+      "kind": "create_timeline_entry",
+      "title": "Auto-comment on csv:tic:17",
+      "rationale": "Generated conversation (saas-support, per_ticket=2)",
+      "payload": {
+        "body": {
+          "object": {
+            "__ref": "csv:tic:17"
+          },
+          "body": "I can't log in after the SSO migration was applied to our org. The portal just bounces me back to the login screen.",
+          "type": "timeline_comment",
+          "visibility": "external"
+        }
+      }
+    },
+    {
+      "id": "tle-gen-72",
+      "kind": "create_timeline_entry",
+      "title": "Auto-comment on csv:tic:17",
+      "rationale": "Generated conversation (saas-support, per_ticket=2)",
+      "payload": {
+        "body": {
+          "object": {
+            "__ref": "csv:tic:17"
+          },
+          "body": "Thanks for reaching out — this usually happens when the SAML attribute mapping for `email` isn't preserved across the migration. I've reset your session; can you try one fresh login and let me know if it persists?",
+          "type": "timeline_comment",
+          "visibility": "external"
+        }
+      }
+    },
+    {
+      "id": "tle-gen-73",
+      "kind": "create_timeline_entry",
+      "title": "Auto-comment on csv:tic:18",
+      "rationale": "Generated conversation (saas-support, per_ticket=2)",
+      "payload": {
+        "body": {
+          "object": {
+            "__ref": "csv:tic:18"
+          },
+          "body": "I can't log in after the SSO migration was applied to our org. The portal just bounces me back to the login screen.",
+          "type": "timeline_comment",
+          "visibility": "external"
+        }
+      }
+    },
+    {
+      "id": "tle-gen-74",
+      "kind": "create_timeline_entry",
+      "title": "Auto-comment on csv:tic:18",
+      "rationale": "Generated conversation (saas-support, per_ticket=2)",
+      "payload": {
+        "body": {
+          "object": {
+            "__ref": "csv:tic:18"
+          },
+          "body": "Thanks for reaching out — this usually happens when the SAML attribute mapping for `email` isn't preserved across the migration. I've reset your session; can you try one fresh login and let me know if it persists?",
+          "type": "timeline_comment",
+          "visibility": "external"
+        }
+      }
+    }
+  ]
+}

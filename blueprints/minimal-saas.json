@@ -1,0 +1,85 @@
+{
+  "name": "Minimal SaaS demo",
+  "description": "Product hierarchy with sample issue, ticket, incident, and a link.",
+  "options": {
+    "include_sprint_discovery": false
+  },
+  "defaults": {
+    "owned_by": ["SELF"]
+  },
+  "parts": [
+    {
+      "ref": "prod:acme",
+      "type": "product",
+      "name": "Acme Platform",
+      "description": "Demo product"
+    },
+    {
+      "ref": "cap:core",
+      "type": "capability",
+      "name": "Core Services",
+      "parent_ref": "prod:acme"
+    },
+    {
+      "ref": "feat:sso",
+      "type": "feature",
+      "name": "SSO",
+      "parent_ref": "cap:core"
+    },
+    {
+      "ref": "enh:onboarding",
+      "type": "enhancement",
+      "name": "Onboarding checklist",
+      "parent_ref": "feat:sso"
+    }
+  ],
+  "works": [
+    {
+      "ref": "iss:demo1",
+      "type": "issue",
+      "title": "Demo issue — backlog grooming",
+      "applies_to_part_ref": "feat:sso",
+      "external_ref": "demo-se-issue-1"
+    },
+    {
+      "ref": "tic:demo1",
+      "type": "ticket",
+      "title": "Demo ticket — customer question",
+      "applies_to_part_ref": "feat:sso",
+      "external_ref": "demo-se-ticket-1"
+    }
+  ],
+  "incidents": [
+    {
+      "ref": "inc:demo1",
+      "title": "Demo incident — brief outage",
+      "applies_to_part_refs": ["feat:sso"],
+      "body": "Synthetic incident for POC storytelling."
+    }
+  ],
+  "links": [
+    {
+      "source_ref": "tic:demo1",
+      "target_ref": "iss:demo1",
+      "link_type": "is_dependent_on",
+      "rationale": "Ticket depends on issue (DevRev default link types use is_dependent_on for ticket↔issue; is_related_to often returns 400 for this pair)."
+    },
+    {
+      "source_ref": "inc:demo1",
+      "target_ref": "tic:demo1",
+      "link_type": "is_related_to",
+      "rationale": "Associate incident with ticket."
+    }
+  ],
+  "ui_guidance": [
+    {
+      "title": "Optional: sprint boards",
+      "doc_links": ["https://devrev.ai/docs/DevRevU/demos"],
+      "steps": [
+        "Open DevRev and navigate to your sprint or curated iteration view.",
+        "Assign one or more demo issues to a sprint if your story requires it.",
+        "Note: automated sprint discovery in this CLI aggregates sprint metadata from works.list responses and may miss empty sprints."
+      ]
+    }
+  ]
+}

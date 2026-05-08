@@ -1,0 +1,128 @@
+{
+  "name": "Freshdesk → DevRev migration POC",
+  "description": "Stand up a parallel-run DevRev environment seeded with KB articles, sample tickets, and the parts/SLA scaffolding a Freshdesk customer expects. Drop your Freshdesk export CSVs in `csv` to import real tickets/contacts; the agent auto-detects Freshdesk headers.",
+  "defaults": {
+    "owned_by": [
+      "SELF"
+    ]
+  },
+  "parts": [
+    {
+      "ref": "prod:platform",
+      "type": "product",
+      "name": "Platform"
+    },
+    {
+      "ref": "cap:auth",
+      "type": "capability",
+      "name": "Authentication",
+      "parent_ref": "prod:platform"
+    },
+    {
+      "ref": "cap:billing",
+      "type": "capability",
+      "name": "Billing",
+      "parent_ref": "prod:platform"
+    },
+    {
+      "ref": "cap:integrations",
+      "type": "capability",
+      "name": "Integrations",
+      "parent_ref": "prod:platform"
+    },
+    {
+      "ref": "feat:sso",
+      "type": "feature",
+      "name": "SSO",
+      "parent_ref": "cap:auth"
+    },
+    {
+      "ref": "feat:2fa",
+      "type": "feature",
+      "name": "Two-factor auth",
+      "parent_ref": "cap:auth"
+    },
+    {
+      "ref": "feat:invoices",
+      "type": "feature",
+      "name": "Invoices & exports",
+      "parent_ref": "cap:billing"
+    },
+    {
+      "ref": "feat:webhooks",
+      "type": "feature",
+      "name": "Webhooks",
+      "parent_ref": "cap:integrations"
+    }
+  ],
+  "generate_conversations": {
+    "scenario": "saas-support",
+    "per_ticket": 2,
+    "seed": 303
+  },
+  "csv": [
+    {
+      "entity": "articles",
+      "generator": "faker",
+      "scenario": "saas-support",
+      "count": 10,
+      "seed": 101
+    },
+    {
+      "entity": "tickets",
+      "generator": "faker",
+      "scenario": "saas-support",
+      "count": 15,
+      "seed": 202
+    }
+  ],
+  "ui_guidance": [
+    {
+      "title": "Map Freshdesk priorities to DevRev",
+      "steps": [
+        "Freshdesk Urgent → DevRev priority p0",
+        "Freshdesk High → p1",
+        "Freshdesk Medium → p2",
+        "Freshdesk Low → p3",
+        "Verify the mapping in your CSV column_map (use 'priority_name' → 'priority' if you exported from Freshdesk's default columns)."
+      ],
+      "doc_links": [
+        "https://devrev.ai/docs/product/tickets"
+      ]
+    },
+    {
+      "title": "SLA policy parity with Freshdesk",
+      "steps": [
+        "Settings → SLA Policies → Create",
+        "Recreate your Freshdesk SLA bands by severity: First-response and Resolution targets per priority.",
+        "Apply per-account using the same Enterprise/Standard split you used in Freshdesk."
+      ],
+      "doc_links": [
+        "https://devrev.ai/docs/product/sla"
+      ]
+    },
+    {
+      "title": "Bidirectional Freshdesk Airsync (parallel-run period)",
+      "steps": [
+        "Settings → Integrations → Snap-ins",
+        "Install the Freshdesk Airsync snap-in",
+        "Authenticate against your Freshdesk subdomain (read-only API key recommended for parallel-run)",
+        "Map Freshdesk Products → DevRev Parts (use the parts hierarchy seeded above as the target)",
+        "Enable bidirectional ticket sync until you cut over",
+        "Disable sync after cutover and import the final delta CSV"
+      ],
+      "doc_links": [
+        "https://developer.devrev.ai/airsync/about"
+      ]
+    },
+    {
+      "title": "Importing your real Freshdesk export",
+      "steps": [
+        "Export tickets from Freshdesk → Admin → Account → Data Exports.",
+        "Drop the CSV next to this blueprint and add a `csv` entry: `{ \"path\": \"./fd-tickets.csv\", \"entity\": \"tickets\" }`.",
+        "The agent auto-detects Freshdesk headers (Ticket ID, Requester Name, Agent Name, Priority Name, Status Name) and applies the column map automatically.",
+        "Override mappings via `column_map` if your export has custom columns."
+      ]
+    }
+  ]
+}

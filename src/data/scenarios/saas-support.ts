@@ -1,0 +1,66 @@
+import type { Scenario } from "./types.js";
+
+export const saasSupport: Scenario = {
+  name: "saas-support",
+  description: "B2B SaaS product with an inbound support team triaging customer tickets.",
+  companySuffixes: ["Inc", "Labs", "Co", "Systems", "Cloud", "Technologies"],
+  emailDomainTemplate: "${slug}.com",
+  ticketTitles: [
+    "Cannot log in after SSO migration",
+    "Webhook deliveries failing intermittently",
+    "Billing portal returns 500 on invoice export",
+    "API rate limit exceeded during bulk sync",
+    "Two-factor authentication code not arriving",
+    "Dashboard charts render blank for last 24h",
+    "User invitation email lands in spam",
+    "Password reset link expired immediately",
+    "Cannot upload CSV larger than 10MB",
+    "Mobile app crashes on cold start",
+    "Slack integration disconnected without warning",
+    "Search returns stale results after edit",
+    "Audit log missing recent admin actions",
+    "Custom domain TLS handshake fails",
+    "Report scheduling stuck in pending",
+  ],
+  issueTitles: [
+    "Investigate intermittent webhook delivery failures",
+    "Add retry-after handling to bulk sync endpoint",
+    "Fix invoice export memory regression",
+    "Improve SSO migration tolerance for legacy claims",
+    "Refactor 2FA delivery to a queueable worker",
+    "Backfill audit log for missed admin actions",
+    "Tighten CSV upload size handling and error message",
+    "Stabilize mobile cold-start crash",
+  ],
+  priorityWeights: ["p2", "p2", "p2", "p3", "p1", "p1", "p3", "p0"],
+  articleTitles: [
+    "How to reset your password",
+    "Setting up SSO with Okta",
+    "Configuring webhook endpoints",
+    "Bulk-importing users via CSV",
+    "Troubleshooting failed deployments",
+    "Understanding API rate limits",
+    "Enabling two-factor authentication",
+    "Exporting your billing history",
+    "Custom domain & TLS setup",
+    "Migrating from a legacy plan",
+  ],
+  conversations: [
+    {
+      customer: "I can't log in after the SSO migration was applied to our org. The portal just bounces me back to the login screen.",
+      agent: "Thanks for reaching out — this usually happens when the SAML attribute mapping for `email` isn't preserved across the migration. I've reset your session; can you try one fresh login and let me know if it persists?",
+    },
+    {
+      customer: "Our webhook deliveries have been failing intermittently since this morning. Receiving 500s from your endpoint maybe 1 in 5 times.",
+      agent: "Appreciate the details. We're tracking a transient issue with one upstream worker pool. I've routed your account to a healthy region while we drain the bad node — please confirm if delivery success rate improves over the next 30 min.",
+    },
+    {
+      customer: "Invoice export keeps returning a 500 error. I tried it twice this morning and once last night.",
+      agent: "Sorry about that. The 500 on invoice export is a memory regression we've identified — engineering has a fix queued for today's deploy. In the meantime I can email you the PDF directly, what address should I send it to?",
+    },
+    {
+      customer: "We're hitting the API rate limit during our weekend bulk sync and dropping records.",
+      agent: "Understood — your tier defaults to 60 RPM but we can temporarily lift you to 240 RPM during the sync window. I've opened that bump for the next 72 hours. Long-term, the docs on cursor-based pagination might help reduce the per-record call count.",
+    },
+  ],
+};

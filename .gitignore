@@ -1,0 +1,10 @@
+node_modules/
+dist/
+*.log
+.env
+.DS_Store
+implementation-log.json
+implementation-report.md
+run-manifest.json
+.plan-output/
+coverage/

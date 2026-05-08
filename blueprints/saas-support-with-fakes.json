@@ -1,0 +1,28 @@
+{
+  "name": "SaaS support POC with synthetic data",
+  "description": "Product hierarchy plus 25 generated tickets and 10 generated contacts using the saas-support scenario.",
+  "defaults": {
+    "owned_by": ["SELF"],
+    "applies_to_part": "REPLACE_WITH_PRODUCT_PART_DISPLAY_ID",
+    "rev_org": "REPLACE_WITH_REV_ORG_ID_OR_DISPLAY_ID"
+  },
+  "parts": [
+    { "ref": "prod:lumio", "type": "product", "name": "Lumio" },
+    { "ref": "cap:auth", "type": "capability", "name": "Auth & Access", "parent_ref": "prod:lumio" },
+    { "ref": "feat:sso", "type": "feature", "name": "SSO", "parent_ref": "cap:auth" }
+  ],
+  "csv": [
+    { "generator": "faker", "scenario": "saas-support", "entity": "tickets", "count": 25, "seed": 42 },
+    { "generator": "faker", "scenario": "saas-support", "entity": "contacts", "count": 10, "seed": 7 }
+  ],
+  "ui_guidance": [
+    {
+      "title": "Replace placeholder defaults",
+      "doc_links": ["https://developer.devrev.ai/beta/about/for-developers"],
+      "steps": [
+        "Set defaults.applies_to_part to a real product/part display id once you've created the product.",
+        "Set defaults.rev_org to your customer workspace display id so generated contacts attach correctly."
+      ]
+    }
+  ]
+}
