@@ -14,6 +14,12 @@ describe("CSV source-system detection", () => {
     ).toBe("zendesk");
   });
 
+  it("identifies Jira exports by signature columns", () => {
+    expect(
+      detectSourceSystem(["Issue key", "Issue Type", "Summary", "Assignee", "Reporter", "Priority", "Status"]),
+    ).toBe("jira");
+  });
+
   it("returns 'unknown' for arbitrary CSVs", () => {
     expect(detectSourceSystem(["Name", "Email", "Phone"])).toBe("unknown");
     expect(detectSourceSystem([])).toBe("unknown");

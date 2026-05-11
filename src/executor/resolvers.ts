@@ -3,6 +3,8 @@ import type { RunManifest } from "./manifest.js";
 export type ResolveContext = {
   manifest: RunManifest;
   selfDisplayId: string;
+  /** Lazily populated: maps state names ("open", "in_progress", "closed") to DON IDs. */
+  stateIds?: Map<string, string>;
 };
 
 export function resolveOwnedBy(raw: unknown, ctx: ResolveContext): string[] | undefined {

@@ -403,6 +403,63 @@ export async function buildPlanFromBlueprint(
     );
   }
 
+  // Tags — created early so they can be referenced by works/articles later.
+  for (const tag of blueprint.tags ?? []) {
+    steps.push(
+      step(nextId("tag"), {
+        kind: "create_tag",
+        title: `Create tag: ${tag.name}`,
+        rationale: tag.ref ? `Blueprint tag ref=${tag.ref}` : "Blueprint tag",
+        payload: {
+          manifest_ref: tag.ref,
+          body: {
+            name: tag.name,
+            description: tag.description,
+          },
+        },
+      }),
+    );
+  }
+
+  // Custom stages — ticket/issue lifecycle stages.
+  for (const cs of blueprint.custom_stages ?? []) {
+    steps.push(
+      step(nextId("stage"), {
+        kind: "create_custom_stage",
+        title: `Create custom stage: ${cs.name} (${cs.state}, ordinal ${cs.ordinal})`,
+        rationale: cs.ref ? `Blueprint custom stage ref=${cs.ref}` : "Blueprint custom stage",
+        payload: {
+          manifest_ref: cs.ref,
+          body: {
+            name: cs.name,
+            description: cs.description,
+            state: cs.state,
+            ordinal: cs.ordinal,
+          },
+        },
+      }),
+    );
+  }
+
+  // Groups — support teams, escalation groups, etc.
+  for (const g of blueprint.groups ?? []) {
+    steps.push(
+      step(nextId("group"), {
+        kind: "create_group",
+        title: `Create group: ${g.name}`,
+        rationale: g.ref ? `Blueprint group ref=${g.ref}` : "Blueprint group",
+        payload: {
+          manifest_ref: g.ref,
+          body: {
+            name: g.name,
+            description: g.description,
+            ...(g.members && g.members.length > 0 ? { members: g.members } : {}),
+          },
+        },
+      }),
+    );
+  }
+
   for (const link of blueprint.links ?? []) {
     steps.push(
       step(nextId("link"), {

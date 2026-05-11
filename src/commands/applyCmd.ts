@@ -1,8 +1,9 @@
 import { readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { DevRevHttpClient } from "../api/client.js";
+import { resolveOrgIdentity, formatOrgBanner } from "../api/devUsers.js";
 import { loadEnvFiles, requireEnv } from "../config/loadEnv.js";
-import { executePlan } from "../executor/runner.js";
+import { executePlan, type StepProgress } from "../executor/runner.js";
 import { AuditLogger } from "../logging/audit.js";
 import { parsePlanJson, type Plan } from "../types/plan.js";
 import { DEFAULT_OUTPUT_DIR } from "./planCmd.js";
@@ -47,6 +48,24 @@ export async function applyCommand(args: ApplyCliArgs): Promise<void> {
 
   const client = new DevRevHttpClient({ pat, betaScope: beta });
 
+  const isJson = Boolean(args.json);
+
+  // Live per-step progress for human-readable output.
+  const onStep: ((p: StepProgress) => void) | undefined = isJson
+    ? undefined
+    : (p) => {
+        const n = `[${p.stepIndex + 1}/${p.totalSteps}]`;
+        const icon = p.status === "ok" ? "✓" : p.status === "skipped" ? "~" : "✗";
+        const suffix = p.message ? `  → ${p.message}` : "";
+        console.log(`  ${icon} ${n} ${p.title}${suffix}`);
+      };
+
+  if (!isJson) {
+    const orgId = await resolveOrgIdentity(client);
+    console.log(`\n  Org: ${formatOrgBanner(orgId)}`);
+    console.log(`\nApplying ${plan.steps.length} step(s)${args.dryRun ? " (dry run)" : ""}…\n`);
+  }
+
   const summary = await executePlan({
     plan,
     client,
@@ -54,12 +73,15 @@ export async function applyCommand(args: ApplyCliArgs): Promise<void> {
     outputDir,
     audit,
     resume: args.resume,
+    onStep,
   });
 
-  if (args.json) {
+  if (isJson) {
     process.stdout.write(`${JSON.stringify(summary)}\n`);
   } else {
-    console.log("\nExecution summary:", summary);
+    console.log(
+      `\nDone: ${summary.ok} ok, ${summary.failed} failed, ${summary.skipped} skipped.`,
+    );
     if (summary.failures.length) {
       console.error("\nFailures:");
       for (const f of summary.failures) {

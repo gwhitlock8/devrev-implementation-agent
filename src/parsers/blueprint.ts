@@ -181,6 +181,30 @@ const PlugConfigBlueprintSchema = z.object({
   ai_grounding_notes: z.string().optional(),
 });
 
+const TagBlueprintSchema = z.object({
+  ref: z.string().optional(),
+  name: z.string(),
+  description: z.string().optional(),
+});
+
+const CustomStageBlueprintSchema = z.object({
+  ref: z.string().optional(),
+  name: z.string(),
+  description: z.string().optional(),
+  /** DevRev stage state: open, in_progress, or closed */
+  state: z.enum(["open", "in_progress", "closed"]),
+  /** Position within the stage pipeline (0-based). Lower = earlier. */
+  ordinal: z.number().int().min(0),
+});
+
+const GroupBlueprintSchema = z.object({
+  ref: z.string().optional(),
+  name: z.string(),
+  description: z.string().optional(),
+  /** Dev user display_ids or refs to include as group members */
+  members: z.array(z.string()).optional(),
+});
+
 const INTEGRATION_KEYS = [
   "slack",
   "jira",
@@ -228,6 +252,9 @@ export const BlueprintSchema = z.object({
   email_channels: z.array(EmailChannelBlueprintSchema).optional(),
   plug_config: PlugConfigBlueprintSchema.optional(),
   integrations: z.array(IntegrationItemSchema).optional(),
+  tags: z.array(TagBlueprintSchema).optional(),
+  custom_stages: z.array(CustomStageBlueprintSchema).optional(),
+  groups: z.array(GroupBlueprintSchema).optional(),
   csv: z.array(CsvBindingSchema).optional(),
   ui_guidance: z
     .array(

@@ -3,7 +3,10 @@ import { Command } from "commander";
 import { applyCommand } from "./commands/applyCmd.js";
 import { cleanupCommand } from "./commands/cleanupCmd.js";
 import { doctorCommand } from "./commands/doctor.js";
+import { emptyCommand } from "./commands/emptyCmd.js";
 import { generateCommand } from "./commands/generateCmd.js";
+import { researchCommand } from "./commands/researchCmd.js";
+import { snapshotCommand } from "./commands/snapshotCmd.js";
 import { mcpServeCommand } from "./commands/mcpServeCmd.js";
 import { planCommand, DEFAULT_OUTPUT_DIR } from "./commands/planCmd.js";
 import { startCommand } from "./commands/startCmd.js";
@@ -32,6 +35,7 @@ program
   .option("--dry-run", "Apply in dry-run mode (no DevRev mutations)", false)
   .option("--no-mcp", "Skip the DevRev MCP lookup_org tool during planning")
   .option("--json", "Emit a machine-readable summary instead of the human view", false)
+  .option("--model [model]", "Anthropic model to use (omit value or use 'pick' for an interactive picker)", undefined)
   .action(async (briefParts: string[], opts) => {
     await startCommand({
       prompt: briefParts.length ? briefParts.join(" ") : undefined,
@@ -43,6 +47,7 @@ program
       dryRun: Boolean(opts.dryRun),
       noMcp: opts.mcp === false,
       json: Boolean(opts.json),
+      model: opts.model === true ? "pick" : opts.model,
     });
   });
 
@@ -55,6 +60,7 @@ program
   .option("-o, --output-dir <dir>", "Output directory", DEFAULT_OUTPUT_DIR)
   .option("--no-mcp", "Skip the DevRev MCP lookup_org tool during planning")
   .option("--json", "Emit a machine-readable summary instead of the human view", false)
+  .option("--model [model]", "Anthropic model to use (omit value or use 'pick' for an interactive picker)", undefined)
   .action(async (briefParts: string[], opts) => {
     await planCommand({
       prompt: briefParts.length ? briefParts.join(" ") : undefined,
@@ -63,6 +69,8 @@ program
       outputDir: opts.outputDir,
       noMcp: opts.mcp === false,
       json: Boolean(opts.json),
+      // --model with no value → opts.model is true (Commander quirk for optional args)
+      model: opts.model === true ? "pick" : opts.model,
     });
   });
 
@@ -142,6 +150,56 @@ program
   });
 
 program
+  .command("empty")
+  .description("Delete ALL user-created objects in the org (works, articles, tags, groups, accounts, parts)")
+  .option("--dry-run", "Preview what would be deleted without making any API calls", false)
+  .option("-y, --yes", "Skip the confirmation prompt", false)
+  .option("--json", "Emit the summary as JSON", false)
+  .action(async (opts) => {
+    await emptyCommand({
+      dryRun: Boolean(opts.dryRun),
+      yes: Boolean(opts.yes),
+      json: Boolean(opts.json),
+    });
+  });
+
+program
+  .command("research")
+  .argument("<query...>", "Natural-language research query about the DevRev org")
+  .description("Research the internal DevRev org (read-only) and synthesize a report with Claude")
+  .option("--model [model]", "Anthropic model to use (omit value or use 'pick' for an interactive picker)", undefined)
+  .option("--json", "Emit the report as JSON", false)
+  .action(async (queryParts: string[], opts) => {
+    await researchCommand({
+      query: queryParts.join(" "),
+      model: opts.model === true ? "pick" : opts.model,
+      json: Boolean(opts.json),
+    });
+  });
+
+program
+  .command("snapshot")
+  .description("Export the live org state as a blueprint JSON — a portable mirror you can apply to a fresh org")
+  .option("-o, --output <path>", "Output file path (default: snapshot-<timestamp>.json)")
+  .option("--no-works", "Omit tickets and issues from the snapshot")
+  .option("--no-customers", "Omit accounts, rev orgs, and rev users from the snapshot")
+  .option("--max-works <n>", "Maximum tickets + issues to include (default: 50)", (v: string) => Number(v))
+  .option("--max-accounts <n>", "Maximum accounts to include (default: 20)", (v: string) => Number(v))
+  .option("--max-articles <n>", "Maximum KB articles to include (default: 40)", (v: string) => Number(v))
+  .option("--json", "Emit a machine-readable summary instead of the human view", false)
+  .action(async (opts) => {
+    await snapshotCommand({
+      output: opts.output,
+      noWorks: opts.works === false,
+      noCustomers: opts.customers === false,
+      maxWorks: opts.maxWorks,
+      maxAccounts: opts.maxAccounts,
+      maxArticles: opts.maxArticles,
+      json: Boolean(opts.json),
+    });
+  });
+
+program
   .command("doctor")
   .description("Check DevRev PAT, Anthropic key, and DevRev MCP connectivity")
   .action(async () => {
@@ -150,10 +208,32 @@ program
 
 program.parseAsync(process.argv).catch((e) => {
   const verbose = Boolean(program.opts().verbose);
-  if (verbose && e instanceof Error && e.stack) {
+
+  // Friendly error messages for common failure modes.
+  const msg = e instanceof Error ? e.message : String(e);
+
+  if (msg.includes("DEVREV_RESEARCH_PAT")) {
+    console.error("Error: DEVREV_RESEARCH_PAT is not set. Required by `dia research`.");
+    console.error("  → Add it to your .env file. This PAT should point to your internal DevRev org.");
+  } else if (msg.includes("DEVREV_PAT")) {
+    console.error("Error: DEVREV_PAT is not set. Add it to your .env file or export it directly.");
+    console.error("  → Run `dia doctor` to validate your setup.");
+  } else if (msg.includes("ANTHROPIC_API_KEY")) {
+    console.error("Error: ANTHROPIC_API_KEY is not set. Required for NL synthesis (plan/start).");
+    console.error("  → Add it to your .env file or export it directly.");
+  } else if (msg.includes("HTTP 401") || msg.includes("Unauthorized")) {
+    console.error("Error: DevRev authentication failed — your PAT may be expired or invalid.");
+    console.error("  → Generate a new token at https://app.devrev.ai/settings → API Keys.");
+  } else if (msg.includes("HTTP 403") || msg.includes("Forbidden")) {
+    console.error("Error: Permission denied. Your DevRev user may lack the required role.");
+    console.error("  → Run `dia doctor` to check your role. Admin is needed for most operations.");
+  } else if (msg.includes("ENOTFOUND") || msg.includes("ECONNREFUSED") || msg.includes("fetch failed")) {
+    console.error("Error: Cannot reach the DevRev API. Check your network connection.");
+  } else if (verbose && e instanceof Error && e.stack) {
     console.error(e.stack);
   } else {
-    console.error(e instanceof Error ? e.message : e);
+    console.error(`Error: ${msg}`);
   }
+
   process.exitCode = 1;
 });

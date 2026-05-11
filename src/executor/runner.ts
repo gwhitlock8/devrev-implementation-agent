@@ -3,12 +3,15 @@ import { DevRevHttpError } from "../api/client.js";
 import { accountsCreate, accountsUpdate } from "../api/accounts.js";
 import { articlesCreate } from "../api/articles.js";
 import { devUsersSelf } from "../api/devUsers.js";
+import { groupsCreate, groupsListPost } from "../api/groups.js";
 import { incidentsCreate, incidentsUpdate } from "../api/incidents.js";
 import { linksCreate } from "../api/links.js";
 import { partsCreate, partsUpdate } from "../api/parts.js";
 import { revOrgsCreate } from "../api/revOrgs.js";
 import { revUsersCreate, revUsersUpdate } from "../api/revUsers.js";
 import { listSprintsReferencedByWorks } from "../api/sprints.js";
+import { customStagesCreate, customStagesListPost, discoverStateIds } from "../api/stages.js";
+import { tagsCreate } from "../api/tags.js";
 import { timelineEntriesCreate } from "../api/timelineEntries.js";
 import { findWorkByExternalRef, worksCreate, worksUpdate } from "../api/works.js";
 import { AuditLogger } from "../logging/audit.js";
@@ -55,6 +58,15 @@ export async function resolveSelfDisplayId(client: DevRevHttpClient): Promise<st
   return id;
 }
 
+export type StepProgress = {
+  stepIndex: number;
+  totalSteps: number;
+  stepId: string;
+  title: string;
+  status: "ok" | "skipped" | "failed";
+  message?: string;
+};
+
 export async function executePlan(options: {
   plan: Plan;
   client: DevRevHttpClient;
@@ -64,18 +76,26 @@ export async function executePlan(options: {
   manifest?: RunManifest;
   /** When true, skip steps whose ids are already in `manifest.completed`. */
   resume?: boolean;
+  /** Optional callback invoked after each step completes. */
+  onStep?: (progress: StepProgress) => void;
 }): Promise<ExecutionSummary> {
   const manifest = options.manifest ?? (await loadManifest(options.outputDir));
   const selfDisplayId = await resolveSelfDisplayId(options.client);
   const ctx: ResolveContext = { manifest, selfDisplayId };
 
   const summary: ExecutionSummary = { ok: 0, failed: 0, skipped: 0, failures: [] };
+  const total = options.plan.steps.length;
 
   const persistManifest = async () => saveManifest(options.outputDir, manifest);
 
-  for (const step of options.plan.steps) {
+  for (let i = 0; i < options.plan.steps.length; i++) {
+    const step = options.plan.steps[i];
     if (options.resume && manifest.completed[step.id]) {
       summary.skipped++;
+      options.onStep?.({
+        stepIndex: i, totalSteps: total, stepId: step.id,
+        title: step.title ?? step.kind, status: "skipped", message: "resumed",
+      });
       await options.audit.log({
         ts: new Date().toISOString(),
         step_id: step.id,
@@ -102,17 +122,26 @@ export async function executePlan(options: {
       } else if (result === "skipped") {
         summary.skipped++;
       }
+      options.onStep?.({
+        stepIndex: i, totalSteps: total, stepId: step.id,
+        title: step.title ?? step.kind, status: result,
+      });
       await persistManifest();
     } catch (e) {
       summary.failed++;
-      summary.failures.push({ stepId: step.id, message: errMsg(e) });
+      const msg = errMsg(e);
+      summary.failures.push({ stepId: step.id, message: msg });
+      options.onStep?.({
+        stepIndex: i, totalSteps: total, stepId: step.id,
+        title: step.title ?? step.kind, status: "failed", message: msg,
+      });
       await options.audit.log({
         ts: new Date().toISOString(),
         step_id: step.id,
         phase: "execute",
         operation: step.kind,
         status: "failed",
-        error: errMsg(e),
+        error: msg,
         rationale: step.rationale,
       });
       await persistManifest();
@@ -624,6 +653,162 @@ async function executeOneStep(params: {
       status: "ok",
       request: AuditLogger.snapshot(body),
       response_summary: AuditLogger.snapshot(res.article ?? res),
+    });
+    return "ok";
+  }
+
+  if (step.kind === "create_tag") {
+    const body = resolveDeep({ ...(payload.body as Record<string, unknown>) }, ctx) as Record<
+      string,
+      unknown
+    >;
+    const res = await tagsCreate(client, body);
+    const ref = payload.manifest_ref as string | undefined;
+    if (ref && res.tag?.id) {
+      ctx.manifest.refs[ref] = { id: res.tag.id, display_id: res.tag.display_id };
+    }
+    await audit.log({
+      ts: new Date().toISOString(),
+      step_id: step.id,
+      phase: "execute",
+      operation: "tags.create",
+      rationale: step.rationale,
+      status: "ok",
+      request: AuditLogger.snapshot(body),
+      response_summary: AuditLogger.snapshot(res.tag ?? res),
+    });
+    return "ok";
+  }
+
+  if (step.kind === "create_custom_stage") {
+    const body = resolveDeep({ ...(payload.body as Record<string, unknown>) }, ctx) as Record<
+      string,
+      unknown
+    >;
+    // DevRev's stages.custom.create expects `state` as a DON ID
+    // (e.g. "don:core:…:custom_state/1"), not a friendly name like "open".
+    // Lazily discover state IDs on first custom stage step, then cache.
+    if (typeof body.state === "string" && !body.state.startsWith("don:")) {
+      if (!ctx.stateIds) {
+        ctx.stateIds = await discoverStateIds(client);
+      }
+      const stateId = ctx.stateIds.get(body.state);
+      if (!stateId) {
+        throw new Error(
+          `Unknown stage state "${body.state}". Known states: ${[...ctx.stateIds.keys()].join(", ")}`,
+        );
+      }
+      body.state = stateId;
+    }
+    const ref = payload.manifest_ref as string | undefined;
+    const stageName = typeof body.name === "string" ? body.name : undefined;
+    try {
+      const res = await customStagesCreate(client, body);
+      if (ref && res.custom_stage?.id) {
+        ctx.manifest.refs[ref] = {
+          id: res.custom_stage.id,
+          display_id: res.custom_stage.display_id,
+        };
+      }
+      await audit.log({
+        ts: new Date().toISOString(),
+        step_id: step.id,
+        phase: "execute",
+        operation: "stages.custom.create",
+        rationale: step.rationale,
+        status: "ok",
+        request: AuditLogger.snapshot(body),
+        response_summary: AuditLogger.snapshot(res.custom_stage ?? res),
+      });
+      return "ok";
+    } catch (e) {
+      // DevRev rejects duplicate stage names with HTTP 400. Fall back to
+      // finding the existing stage by name and reusing it in the manifest.
+      if (e instanceof DevRevHttpError && e.status === 400 && stageName) {
+        const listRes = await customStagesListPost(client, {});
+        const existing = (listRes.result ?? []).find(
+          (s) => typeof s.name === "string" && s.name.toLowerCase() === stageName.toLowerCase(),
+        );
+        if (existing?.id) {
+          if (ref) {
+            ctx.manifest.refs[ref] = { id: existing.id, display_id: existing.display_id };
+          }
+          await audit.log({
+            ts: new Date().toISOString(),
+            step_id: step.id,
+            phase: "execute",
+            operation: "stages.custom.create",
+            rationale: step.rationale,
+            status: "ok",
+            request: AuditLogger.snapshot(body),
+            response_summary: AuditLogger.snapshot({
+              note: "reused_existing_stage_with_same_name",
+              stage: existing,
+            }),
+          });
+          return "ok";
+        }
+      }
+      throw e;
+    }
+  }
+
+  if (step.kind === "create_group") {
+    const raw = resolveDeep({ ...(payload.body as Record<string, unknown>) }, ctx) as Record<
+      string,
+      unknown
+    >;
+    // DevRev groups.create requires: name (text), description (text).
+    // Default type to "static" (manually-managed group) when not specified.
+    // Strip undefined/null values to avoid sending empty keys the API may reject.
+    const body: Record<string, unknown> = {};
+    if (raw.name) body.name = raw.name;
+    if (raw.description) {
+      body.description = raw.description;
+    } else if (typeof raw.name === "string") {
+      body.description = raw.name;
+    }
+    body.type = raw.type ?? "static";
+    if (Array.isArray(raw.members) && raw.members.length > 0) {
+      body.members = raw.members;
+    }
+
+    let groupResult: { id?: string; display_id?: string } | undefined;
+    try {
+      const res = await groupsCreate(client, body);
+      groupResult = res.group;
+    } catch (e) {
+      // DevRev returns HTTP 400 for duplicate group names. Fall back to
+      // finding the existing group by name and reusing it (groups.delete
+      // does not exist in the API, so duplicates from prior runs persist).
+      if (e instanceof DevRevHttpError && e.status === 400 && typeof body.name === "string") {
+        const listRes = await groupsListPost(client, {});
+        const existing = (listRes.groups ?? []).find(
+          (g) => g.name?.toLowerCase() === (body.name as string).toLowerCase(),
+        );
+        if (existing?.id) {
+          groupResult = existing;
+        } else {
+          throw e; // genuinely invalid, not a duplicate
+        }
+      } else {
+        throw e;
+      }
+    }
+
+    const ref = payload.manifest_ref as string | undefined;
+    if (ref && groupResult?.id) {
+      ctx.manifest.refs[ref] = { id: groupResult.id, display_id: groupResult.display_id };
+    }
+    await audit.log({
+      ts: new Date().toISOString(),
+      step_id: step.id,
+      phase: "execute",
+      operation: "groups.create",
+      rationale: step.rationale,
+      status: "ok",
+      request: AuditLogger.snapshot(body),
+      response_summary: AuditLogger.snapshot(groupResult ?? {}),
     });
     return "ok";
   }

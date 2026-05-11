@@ -1,4 +1,5 @@
 import { DevRevHttpClient, DevRevHttpError } from "../api/client.js";
+import { resolveOrgIdentity, formatOrgBanner } from "../api/devUsers.js";
 import { loadEnvFiles, requireEnv } from "../config/loadEnv.js";
 import { loadManifest, saveManifest, type RunManifest, type ManifestEntry } from "../executor/manifest.js";
 import { AuditLogger, type AuditEntry } from "../logging/audit.js";
@@ -22,6 +23,9 @@ type ObjectCategory =
   | "link"
   | "work"
   | "article"
+  | "tag"
+  | "custom_stage"
+  | "group"
   | "rev_user"
   | "rev_org"
   | "account"
@@ -32,6 +36,9 @@ const DON_SEGMENT_MAP: [RegExp, ObjectCategory][] = [
   [/\blink\//, "link"],
   [/\b(ticket|issue|task|opportunity)\//, "work"],
   [/\barticle\//, "article"],
+  [/\btag\//, "tag"],
+  [/\bcustom_stage\//, "custom_stage"],
+  [/\bgroup\//, "group"],
   [/\brev_user\//, "rev_user"],
   [/\brev_org\//, "rev_org"],
   [/\baccount\//, "account"],
@@ -50,6 +57,9 @@ const DELETE_ENDPOINT: Record<ObjectCategory, string> = {
   link: "links.delete",
   work: "works.delete",
   article: "articles.delete",
+  tag: "tags.delete",
+  custom_stage: "stages.custom.delete",
+  group: "groups.delete",
   rev_user: "rev-users.delete",
   rev_org: "rev-orgs.delete",
   account: "accounts.delete",
@@ -57,11 +67,16 @@ const DELETE_ENDPOINT: Record<ObjectCategory, string> = {
 };
 
 // Deletion order — dependents first, parents last.
+// Tags, stages, and groups are independent of the work/article hierarchy,
+// so they're deleted after works but before accounts/parts.
 const CATEGORY_ORDER: ObjectCategory[] = [
   "timeline_entry",
   "link",
   "work",
   "article",
+  "tag",
+  "custom_stage",
+  "group",
   "rev_user",
   "rev_org",
   "account",
@@ -102,11 +117,29 @@ function sortForDeletion(entries: RefEntry[]): RefEntry[] {
 // Main cleanup logic
 // ---------------------------------------------------------------------------
 
+/** Human-friendly display names for category types. */
+const CATEGORY_LABELS: Record<ObjectCategory, string> = {
+  timeline_entry: "Timeline entries",
+  link: "Links",
+  work: "Works",
+  article: "Articles",
+  tag: "Tags",
+  custom_stage: "Custom stages",
+  group: "Groups",
+  rev_user: "Rev users",
+  rev_org: "Rev orgs",
+  account: "Accounts",
+  part: "Parts",
+};
+
+export type CategoryCounts = { deleted: number; failed: number; skipped: number };
+
 export type CleanupSummary = {
   deleted: number;
   failed: number;
   skipped: number;
   failures: { ref: string; id: string; message: string }[];
+  by_category: Partial<Record<ObjectCategory, CategoryCounts>>;
 };
 
 export async function cleanupCommand(args: CleanupCliArgs): Promise<void> {
@@ -145,11 +178,31 @@ export async function cleanupCommand(args: CleanupCliArgs): Promise<void> {
     const audit = new AuditLogger(outputDir);
     await audit.init();
 
-    const summary = await executeCleanup(sorted, client, manifest, audit, outputDir);
+    if (!args.json) {
+      const orgId = await resolveOrgIdentity(client);
+      console.log(`\n  Org: ${formatOrgBanner(orgId)}\n`);
+    }
+
+    const summary = await executeCleanup(sorted, client, manifest, audit, outputDir, { pat, betaScope: beta });
     if (args.json) {
       process.stdout.write(`${JSON.stringify(summary)}\n`);
     } else {
-      console.log("\nCleanup summary:", summary);
+      console.log(
+        `\nDone: ${summary.deleted} deleted, ${summary.failed} failed, ${summary.skipped} skipped.`,
+      );
+      // Per-category breakdown (only show categories that had activity).
+      const cats = Object.entries(summary.by_category) as [ObjectCategory, CategoryCounts][];
+      if (cats.length > 0) {
+        console.log("");
+        for (const [cat, counts] of cats) {
+          const label = CATEGORY_LABELS[cat] ?? cat;
+          const parts: string[] = [];
+          if (counts.deleted) parts.push(`${counts.deleted} deleted`);
+          if (counts.skipped) parts.push(`${counts.skipped} skipped`);
+          if (counts.failed) parts.push(`${counts.failed} failed`);
+          console.log(`  ${label}: ${parts.join(", ")}`);
+        }
+      }
       if (summary.failures.length) {
         console.error("\nFailures:");
         for (const f of summary.failures) {
@@ -178,16 +231,52 @@ async function executeCleanup(
   manifest: RunManifest,
   audit: AuditLogger,
   outputDir: string,
+  opts: { pat: string; betaScope: boolean },
 ): Promise<CleanupSummary> {
-  const summary: CleanupSummary = { deleted: 0, failed: 0, skipped: 0, failures: [] };
+  const summary: CleanupSummary = { deleted: 0, failed: 0, skipped: 0, failures: [], by_category: {} };
+
+  const bumpCategory = (cat: ObjectCategory, field: "deleted" | "failed" | "skipped") => {
+    if (!summary.by_category[cat]) summary.by_category[cat] = { deleted: 0, failed: 0, skipped: 0 };
+    summary.by_category[cat]![field]++;
+  };
+
+  // groups.delete is only available on the internal gateway, not the public API.
+  const internalClient = new DevRevHttpClient({
+    pat: opts.pat,
+    baseUrl: "https://app.devrev.ai/api/gateway/internal",
+    betaScope: opts.betaScope,
+  });
+
+  // Categories where no delete endpoint exists on any API surface.
+  const NO_DELETE_API = new Set<ObjectCategory>(["custom_stage"]);
 
   for (const { ref, entry, category } of sorted) {
     const endpoint = DELETE_ENDPOINT[category];
     const label = entry.display_id ?? entry.id;
 
+    // Custom stages cannot be deleted via any API — skip gracefully.
+    if (NO_DELETE_API.has(category)) {
+      summary.skipped++;
+      bumpCategory(category, "skipped");
+      delete manifest.refs[ref];
+      console.log(`  ~ ${endpoint}  ${label}  (no delete API — skipped)`);
+      await audit.log({
+        ts: new Date().toISOString(),
+        step_id: `cleanup-${ref}`,
+        phase: "execute",
+        operation: endpoint,
+        status: "skipped",
+        rationale: `${category} objects cannot be deleted via API`,
+      } as AuditEntry);
+      continue;
+    }
+
     try {
-      await client.post(endpoint, { id: entry.id });
+      // groups.delete only exists on the internal gateway endpoint.
+      const deleteClient = category === "group" ? internalClient : client;
+      await deleteClient.post(endpoint, { id: entry.id });
       summary.deleted++;
+      bumpCategory(category, "deleted");
 
       // Remove from manifest so re-running cleanup is idempotent.
       delete manifest.refs[ref];
@@ -216,6 +305,7 @@ async function executeCleanup(
         (err instanceof DevRevHttpError && err.bodyText.includes("not_found"));
       if (is404) {
         summary.skipped++;
+        bumpCategory(category, "skipped");
         delete manifest.refs[ref];
         console.log(`  ~ ${endpoint}  ${label}  (already gone)`);
         await audit.log({
@@ -228,6 +318,7 @@ async function executeCleanup(
         } as AuditEntry);
       } else {
         summary.failed++;
+        bumpCategory(category, "failed");
         summary.failures.push({ ref, id: entry.id, message: msg });
         console.error(`  ✗ ${endpoint}  ${label}  → ${msg}`);
         await audit.log({

@@ -1,0 +1,354 @@
+{
+  "name": "HubSpot → DevRev migration POC",
+  "description": "Parallel-run DevRev environment for a HubSpot customer. HubSpot is typically the CRM of record — Companies become DevRev accounts, Contacts become rev users, Deals/Opportunities are linked, and HubSpot support tickets migrate to DevRev. The AirSync snap-in keeps both systems in sync during the parallel-run period. Drop your HubSpot contact/company CSV exports into `csv` to import real data; the agent auto-detects HubSpot column headers.",
+  "defaults": {
+    "owned_by": ["SELF"]
+  },
+  "parts": [
+    { "ref": "prod:platform", "type": "product", "name": "Platform" },
+    { "ref": "cap:onboarding", "type": "capability", "name": "Onboarding", "parent_ref": "prod:platform" },
+    { "ref": "cap:core-product", "type": "capability", "name": "Core Product", "parent_ref": "prod:platform" },
+    { "ref": "cap:integrations", "type": "capability", "name": "Integrations", "parent_ref": "prod:platform" },
+    { "ref": "cap:billing", "type": "capability", "name": "Billing & Subscriptions", "parent_ref": "prod:platform" },
+    { "ref": "feat:setup-wizard", "type": "feature", "name": "Setup Wizard", "parent_ref": "cap:onboarding" },
+    { "ref": "feat:data-import", "type": "feature", "name": "Data Import", "parent_ref": "cap:onboarding" },
+    { "ref": "feat:reporting", "type": "feature", "name": "Reporting & Analytics", "parent_ref": "cap:core-product" },
+    { "ref": "feat:automation", "type": "feature", "name": "Workflow Automation", "parent_ref": "cap:core-product" },
+    { "ref": "feat:hubspot-sync", "type": "feature", "name": "HubSpot AirSync", "parent_ref": "cap:integrations" },
+    { "ref": "feat:salesforce-sync", "type": "feature", "name": "Salesforce AirSync", "parent_ref": "cap:integrations" },
+    { "ref": "feat:invoices", "type": "feature", "name": "Invoices & Payments", "parent_ref": "cap:billing" },
+    { "ref": "feat:plan-upgrades", "type": "feature", "name": "Plan Upgrades & Renewals", "parent_ref": "cap:billing" }
+  ],
+  "tags": [
+    { "ref": "tag:migrated-from-hubspot", "name": "migrated-from-hubspot", "description": "Ticket imported from HubSpot" },
+    { "ref": "tag:enterprise", "name": "enterprise", "description": "Enterprise-tier account" },
+    { "ref": "tag:growth", "name": "growth", "description": "Growth-tier account" },
+    { "ref": "tag:starter", "name": "starter", "description": "Starter-tier account" },
+    { "ref": "tag:churn-risk", "name": "churn-risk", "description": "Account flagged for churn risk" },
+    { "ref": "tag:deal-open", "name": "deal-open", "description": "Active open deal in HubSpot" },
+    { "ref": "tag:onboarding", "name": "onboarding", "description": "Customer in onboarding phase" }
+  ],
+  "custom_stages": [
+    { "ref": "stage:pending-customer", "name": "Pending Customer", "state": "in_progress", "ordinal": 250 },
+    { "ref": "stage:escalated", "name": "Escalated", "state": "in_progress", "ordinal": 350 },
+    { "ref": "stage:pending-engineering", "name": "Pending Engineering", "state": "in_progress", "ordinal": 450 }
+  ],
+  "groups": [
+    { "ref": "grp:enterprise-support", "name": "Enterprise Support", "description": "Dedicated support team for Enterprise-tier accounts" },
+    { "ref": "grp:onboarding-success", "name": "Onboarding & Success", "description": "Customer onboarding and success team" },
+    { "ref": "grp:technical-support", "name": "Technical Support", "description": "General technical support team" }
+  ],
+  "accounts": [
+    {
+      "ref": "acc:lumio",
+      "display_name": "Lumio",
+      "domains": ["lumio.io"],
+      "description": "Enterprise SaaS customer migrated from HubSpot. Lifecycle stage: Customer."
+    },
+    {
+      "ref": "acc:initech",
+      "display_name": "Initech",
+      "domains": ["initech.com"],
+      "description": "Growth-tier customer with an open expansion deal in HubSpot."
+    },
+    {
+      "ref": "acc:prism-analytics",
+      "display_name": "Prism Analytics",
+      "domains": ["prismanalytics.io"],
+      "description": "Starter-tier customer in active onboarding."
+    }
+  ],
+  "rev_orgs": [
+    {
+      "ref": "ro:lumio",
+      "display_name": "Lumio",
+      "account_ref": "acc:lumio",
+      "domains": ["lumio.io"]
+    },
+    {
+      "ref": "ro:initech",
+      "display_name": "Initech",
+      "account_ref": "acc:initech",
+      "domains": ["initech.com"]
+    },
+    {
+      "ref": "ro:prism-analytics",
+      "display_name": "Prism Analytics",
+      "account_ref": "acc:prism-analytics",
+      "domains": ["prismanalytics.io"]
+    }
+  ],
+  "rev_users": [
+    {
+      "ref": "ru:sarah-lumio",
+      "display_name": "Sarah Chen",
+      "email": "sarah.chen@lumio.io",
+      "rev_org_ref": "ro:lumio"
+    },
+    {
+      "ref": "ru:marcus-lumio",
+      "display_name": "Marcus Webb",
+      "email": "marcus.webb@lumio.io",
+      "rev_org_ref": "ro:lumio"
+    },
+    {
+      "ref": "ru:priya-initech",
+      "display_name": "Priya Patel",
+      "email": "priya.patel@initech.com",
+      "rev_org_ref": "ro:initech"
+    },
+    {
+      "ref": "ru:alex-prism",
+      "display_name": "Alex Torres",
+      "email": "alex.torres@prismanalytics.io",
+      "rev_org_ref": "ro:prism-analytics"
+    }
+  ],
+  "works": [
+    {
+      "ref": "tkt:lumio-001",
+      "type": "ticket",
+      "title": "HubSpot sync not reflecting deal stage updates in real time",
+      "body": "Deals updated in HubSpot are not syncing to DevRev within the expected 5-minute window. Seeing delays of up to 2 hours.",
+      "severity": "high",
+      "applies_to_part_ref": "feat:hubspot-sync",
+      "reported_by_ref": "ru:sarah-lumio",
+      "tags": ["tag:migrated-from-hubspot", "tag:enterprise"]
+    },
+    {
+      "ref": "tkt:lumio-002",
+      "type": "ticket",
+      "title": "Bulk contact import duplicating rev users across orgs",
+      "body": "When importing 2000+ contacts via CSV, the importer creates duplicate rev user records if the same email appears in two company exports.",
+      "severity": "blocker",
+      "applies_to_part_ref": "feat:data-import",
+      "reported_by_ref": "ru:marcus-lumio",
+      "tags": ["tag:migrated-from-hubspot", "tag:enterprise"]
+    },
+    {
+      "ref": "tkt:initech-001",
+      "type": "ticket",
+      "title": "Workflow automation not triggering on deal closed-won from HubSpot",
+      "body": "We set up a workflow to auto-create an onboarding task when a HubSpot deal moves to Closed Won, but the trigger is not firing.",
+      "severity": "high",
+      "applies_to_part_ref": "feat:automation",
+      "reported_by_ref": "ru:priya-initech",
+      "tags": ["tag:migrated-from-hubspot", "tag:growth", "tag:deal-open"]
+    },
+    {
+      "ref": "tkt:initech-002",
+      "type": "ticket",
+      "title": "Revenue reporting dashboard shows incorrect MRR after HubSpot sync",
+      "body": "Monthly Recurring Revenue figures in the DevRev reporting dashboard do not match HubSpot after the AirSync completed. Totals are off by ~12%.",
+      "severity": "high",
+      "applies_to_part_ref": "feat:reporting",
+      "reported_by_ref": "ru:priya-initech",
+      "tags": ["tag:migrated-from-hubspot", "tag:growth"]
+    },
+    {
+      "ref": "tkt:prism-001",
+      "type": "ticket",
+      "title": "Setup wizard crashes on Step 3 when HubSpot OAuth token expires",
+      "body": "During onboarding, if the HubSpot OAuth token expires mid-setup, the wizard throws an unhandled error instead of prompting re-auth.",
+      "severity": "medium",
+      "applies_to_part_ref": "feat:setup-wizard",
+      "reported_by_ref": "ru:alex-prism",
+      "tags": ["tag:migrated-from-hubspot", "tag:onboarding"]
+    },
+    {
+      "ref": "tkt:prism-002",
+      "type": "ticket",
+      "title": "Invoice not generated after plan upgrade via HubSpot deal link",
+      "body": "Customer upgraded from Starter to Growth plan via the HubSpot deal flow. Invoice was not auto-generated in the billing module.",
+      "severity": "medium",
+      "applies_to_part_ref": "feat:invoices",
+      "reported_by_ref": "ru:alex-prism",
+      "tags": ["tag:migrated-from-hubspot", "tag:onboarding"]
+    }
+  ],
+  "articles": [
+    {
+      "ref": "art:hubspot-airsync-setup",
+      "title": "Setting up HubSpot AirSync in DevRev"
+    },
+    {
+      "ref": "art:hubspot-contact-mapping",
+      "title": "How HubSpot Contacts map to DevRev Rev Users"
+    },
+    {
+      "ref": "art:hubspot-deal-to-opportunity",
+      "title": "HubSpot Deals as DevRev Opportunities"
+    },
+    {
+      "ref": "art:csv-import-dedup",
+      "title": "Avoiding duplicate records during bulk CSV import from HubSpot"
+    },
+    {
+      "ref": "art:sla-by-lifecycle-stage",
+      "title": "Configuring SLA policies based on HubSpot lifecycle stage"
+    },
+    {
+      "ref": "art:workflow-triggers",
+      "title": "Triggering DevRev workflows from HubSpot deal events"
+    },
+    {
+      "ref": "art:parallel-run-guide",
+      "title": "Running HubSpot and DevRev in parallel during migration"
+    },
+    {
+      "ref": "art:plug-for-hubspot-customers",
+      "title": "Deploying PLuG for accounts already using HubSpot chat"
+    }
+  ],
+  "links": [
+    { "type": "is_related_to", "source_ref": "tkt:lumio-001", "target_ref": "feat:hubspot-sync" },
+    { "type": "is_related_to", "source_ref": "tkt:lumio-002", "target_ref": "feat:data-import" },
+    { "type": "is_related_to", "source_ref": "tkt:initech-001", "target_ref": "feat:automation" },
+    { "type": "is_related_to", "source_ref": "tkt:initech-002", "target_ref": "feat:reporting" }
+  ],
+  "csv": [
+    {
+      "generator": "faker",
+      "scenario": "b2b-sales",
+      "entity": "contacts",
+      "count": 20,
+      "seed": 801
+    },
+    {
+      "generator": "faker",
+      "scenario": "saas-support",
+      "entity": "tickets",
+      "count": 15,
+      "seed": 802
+    },
+    {
+      "generator": "faker",
+      "scenario": "saas-support",
+      "entity": "articles",
+      "count": 8,
+      "seed": 803
+    }
+  ],
+  "generate_conversations": {
+    "scenario": "saas-support",
+    "per_ticket": 2,
+    "seed": 804
+  },
+  "sla_policies": [
+    {
+      "name": "Enterprise SLA",
+      "description": "For Enterprise-tier accounts migrated from HubSpot (Lifecycle Stage: Customer). Matches typical Enterprise support expectations.",
+      "targets": {
+        "first_response": { "p0": "1h",  "p1": "2h",  "p2": "8h",  "p3": "24h" },
+        "resolution":     { "p0": "4h",  "p1": "8h",  "p2": "24h", "p3": "72h" }
+      }
+    },
+    {
+      "name": "Growth SLA",
+      "description": "For Growth-tier accounts. Maps from HubSpot Professional lifecycle stage.",
+      "targets": {
+        "first_response": { "p0": "2h",  "p1": "4h",  "p2": "12h", "p3": "48h" },
+        "resolution":     { "p0": "8h",  "p1": "24h", "p2": "48h", "p3": "120h" }
+      }
+    },
+    {
+      "name": "Starter SLA",
+      "description": "For Starter-tier accounts. Maps from HubSpot Starter/Free lifecycle stage.",
+      "targets": {
+        "first_response": { "p0": "4h",  "p1": "8h",  "p2": "24h", "p3": "72h" },
+        "resolution":     { "p0": "24h", "p1": "48h", "p2": "120h", "p3": "240h" }
+      }
+    }
+  ],
+  "integrations": ["hubspot", "slack"],
+  "plug_config": {
+    "ai_agent_name": "Support Agent",
+    "grounded_on_parts": ["prod:platform"],
+    "escalation_group_ref": "grp:technical-support"
+  },
+  "ui_guidance": [
+    {
+      "title": "Map HubSpot object types to DevRev",
+      "doc_links": ["https://developer.devrev.ai/airsync/about"],
+      "steps": [
+        "HubSpot Company → DevRev Account (name, domain, owner mapped automatically via AirSync)",
+        "HubSpot Contact → DevRev Rev User (email is the dedup key; org association via Company link)",
+        "HubSpot Deal → DevRev Opportunity (deal stage, amount, and close date are preserved)",
+        "HubSpot Ticket → DevRev Ticket (priority, status, and owner mapped; add 'migrated-from-hubspot' tag for traceability)",
+        "HubSpot Note/Activity → DevRev Timeline Entry (attached to the relevant ticket or account)",
+        "HubSpot Product → DevRev Part (only for software companies; map using the parts hierarchy above)"
+      ]
+    },
+    {
+      "title": "Map HubSpot priorities and lifecycle stages to DevRev SLA tiers",
+      "doc_links": ["https://devrev.ai/docs/product/sla"],
+      "steps": [
+        "HubSpot ticket priority 'Urgent' → DevRev p0 (blocker), apply Enterprise SLA",
+        "HubSpot 'High' → p1, apply Enterprise or Growth SLA based on account tier",
+        "HubSpot 'Medium' → p2, apply Growth or Starter SLA",
+        "HubSpot 'Low' → p3, apply Starter SLA",
+        "Map HubSpot Lifecycle Stage to SLA policy: 'Customer' → Enterprise SLA; 'Lead/Subscriber' → Starter SLA",
+        "After applying, go to Settings → SLA Policies to create these three policies and assign them to the seeded accounts."
+      ]
+    },
+    {
+      "title": "Connecting HubSpot AirSync",
+      "doc_links": ["https://developer.devrev.ai/airsync/about"],
+      "steps": [
+        "Settings → Integrations → Snap-ins → search for 'HubSpot' → Install.",
+        "Authenticate using a HubSpot admin account (OAuth 2.0 — no API key needed).",
+        "Select which HubSpot pipeline(s) to sync: Contacts, Companies, Deals, and Tickets.",
+        "Map HubSpot owners to DevRev dev users — HubSpot owner emails must match DevRev user emails for auto-assignment.",
+        "Run an initial one-way sync (HubSpot → DevRev) to populate historical data before enabling bidirectional sync.",
+        "Enable periodic sync — recommend every 15 minutes during active migration, every hour post-cutover.",
+        "Note: HubSpot Deals sync as Opportunities. To view them in DevRev, go to Issues and switch the type filter to 'Opportunity'."
+      ]
+    },
+    {
+      "title": "Importing your real HubSpot export",
+      "steps": [
+        "Export contacts: HubSpot → Contacts → Actions → Export → select 'All properties' → CSV.",
+        "Export companies: HubSpot → Companies → Actions → Export.",
+        "Drop CSVs next to this blueprint and add csv entries with entity 'contacts' and 'accounts'.",
+        "The agent auto-detects HubSpot headers (First Name, Last Name, Email, Company Name, Lifecycle Stage, HubSpot Owner) and applies the column map automatically.",
+        "For ticket exports: HubSpot → Service → Tickets → Actions → Export. Use entity 'tickets' in the csv entry.",
+        "Override mappings via column_map if your HubSpot instance uses custom properties."
+      ]
+    },
+    {
+      "title": "Replicating HubSpot workflow automation in DevRev",
+      "doc_links": ["https://devrev.ai/docs/product/airdrop"],
+      "steps": [
+        "Map HubSpot Workflows to DevRev Automation rules (Settings → Automation).",
+        "Common trigger: HubSpot deal moves to 'Closed Won' → DevRev: create onboarding ticket, assign to Onboarding & Success group.",
+        "Common trigger: HubSpot deal amount > $50K → DevRev: tag ticket 'enterprise', assign to Enterprise Support group.",
+        "Common trigger: HubSpot contact 'Lifecycle Stage' changes to 'Customer' → DevRev: update rev user record, apply Enterprise SLA.",
+        "Use DevRev snap-ins to build custom triggers driven by HubSpot webhook events.",
+        "Replicate HubSpot email sequences using DevRev's email channel + workflow automation for follow-up reminders."
+      ]
+    },
+    {
+      "title": "Deploying PLuG to replace HubSpot live chat",
+      "doc_links": ["https://devrev.ai/docs/plug"],
+      "steps": [
+        "Settings → Support → PLuG Settings → Enable PLuG widget → copy the Unique App ID.",
+        "Remove the HubSpot chat widget script from your product or website.",
+        "Add the PLuG script: <script src='https://plug-platform.devrev.ai/static/plug.js'></script>.",
+        "Initialize with your App ID and configure the AI agent grounded on your KB articles.",
+        "Configure routing: unauthenticated users → AI deflection first; authenticated users → route to Technical Support group.",
+        "For Enterprise accounts: configure escalation to the Enterprise Support group.",
+        "Test the AI-to-human handoff before going live."
+      ]
+    },
+    {
+      "title": "Parallel-run cutover checklist",
+      "steps": [
+        "Week 1–2: HubSpot is system of record; DevRev in read-only parallel mode. Validate all contacts/companies/deals imported correctly.",
+        "Week 3–4: Enable bidirectional AirSync. New tickets created in either system. Verify sync latency is acceptable (<15 min).",
+        "Cutover day: Disable HubSpot ticket creation. Redirect support email to DevRev. Update PLuG widget to point at DevRev.",
+        "Post-cutover: Keep HubSpot AirSync running for Deals/Opportunities only (CRM data). Disable ticket sync.",
+        "30 days post-cutover: Archive HubSpot support tickets. DevRev is now the single source of truth for support."
+      ]
+    }
+  ]
+}

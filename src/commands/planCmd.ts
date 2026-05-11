@@ -2,6 +2,8 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { synthesizeBlueprintWithClaude, type PlannerEvent } from "../agent/planner.js";
 import { loadEnvFiles, optionalEnv, requireEnv } from "../config/loadEnv.js";
+import { pickModel } from "../util/modelPicker.js";
+import { DEFAULT_ANTHROPIC_PLANNER_MODEL } from "../agent/planner.js";
 import { DevRevMcpClient } from "../mcp/devrevClient.js";
 import { buildPlanFromBlueprint } from "../plan/buildFromBlueprint.js";
 import { formatPlanHuman } from "../plan/format.js";
@@ -21,6 +23,12 @@ export type PlanCliArgs = {
   noMcp?: boolean;
   /** Emit a machine-readable summary on stdout instead of the human view. */
   json?: boolean;
+  /**
+   * Anthropic model to use for synthesis. When set to "pick" (or omitted on an
+   * interactive TTY with --model flag but no value), shows an interactive picker.
+   * Falls back to ANTHROPIC_MODEL env var, then the built-in default.
+   */
+  model?: string;
 };
 
 async function readPrompt(args: PlanCliArgs): Promise<string> {
@@ -98,7 +106,12 @@ export async function planCommand(args: PlanCliArgs): Promise<PlanResult> {
       );
     }
     const apiKey = requireEnv("ANTHROPIC_API_KEY");
-    const model = optionalEnv("ANTHROPIC_MODEL");
+    const defaultModel = optionalEnv("ANTHROPIC_MODEL") ?? DEFAULT_ANTHROPIC_PLANNER_MODEL;
+    // "pick" triggers the interactive picker; any other value is used as-is;
+    // undefined falls back to the env-var default.
+    const model = args.model === "pick"
+      ? await pickModel(defaultModel)
+      : (args.model ?? defaultModel);
     const progress = new Progress();
     let mcp: DevRevMcpClient | null = null;
     if (!args.noMcp && process.env.DEVREV_PAT) {

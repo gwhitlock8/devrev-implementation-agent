@@ -56,6 +56,18 @@ export const HEADER_ALIASES: Record<string, string> = {
   group: "group",
   assignee: "owned_by",
   requester: "reported_by",
+  // Jira-style
+  issue_key: "external_ref",
+  issue_id: "external_ref",
+  summary: "title",
+  issue_type: "type",
+  reporter: "reported_by",
+  project_name: "applies_to_part",
+  project_key: "applies_to_part",
+  resolution: "resolution",
+  labels: "tags",
+  component: "component",
+  sprint: "sprint",
 };
 
 /**
@@ -64,7 +76,7 @@ export const HEADER_ALIASES: Record<string, string> = {
  * indicate the source. Keep this conservative — false positives silently
  * apply column maps the SE didn't ask for.
  */
-export type SourceSystem = "freshdesk" | "zendesk" | "unknown";
+export type SourceSystem = "freshdesk" | "zendesk" | "jira" | "unknown";
 
 export function detectSourceSystem(headers: string[]): SourceSystem {
   const norm = headers.map((h) => h.toLowerCase().trim());
@@ -76,6 +88,10 @@ export function detectSourceSystem(headers: string[]): SourceSystem {
   // Zendesk exports use lowercase "id" + "requester" + "assignee".
   if (set.has("id") && set.has("requester") && set.has("assignee")) {
     return "zendesk";
+  }
+  // Jira exports use "Issue key" + "Summary" + "Issue Type".
+  if (set.has("issue key") && set.has("summary") && set.has("issue type")) {
+    return "jira";
   }
   return "unknown";
 }

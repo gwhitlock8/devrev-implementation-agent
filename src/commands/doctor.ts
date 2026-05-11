@@ -1,5 +1,6 @@
 import { DevRevHttpClient } from "../api/client.js";
-import { devUsersGet, devUsersSelf, type DevUserRecord } from "../api/devUsers.js";
+import { devUsersGet, devUsersSelf, devOrgsGet, resolveOrgIdentity, formatOrgBanner, type DevUserRecord } from "../api/devUsers.js";
+import { ReadOnlyDevRevClient } from "../api/readOnlyClient.js";
 import { loadEnvFiles, optionalEnv, requireEnv } from "../config/loadEnv.js";
 import { DevRevMcpClient } from "../mcp/devrevClient.js";
 
@@ -31,9 +32,16 @@ export async function doctorCommand(): Promise<void> {
     const pat = requireEnv("DEVREV_PAT");
     const beta = process.env.DEVREV_BETA === "1" || process.env.DEVREV_BETA === "true";
     const client = new DevRevHttpClient({ pat, betaScope: beta });
-    const self = await devUsersSelf(client);
+    const [self, orgRes] = await Promise.all([
+      devUsersSelf(client),
+      devOrgsGet(client).catch(() => ({ dev_org: undefined })),
+    ]);
     const u = self.dev_user;
+    const org = orgRes.dev_org;
     console.log("✓ DevRev PAT is valid (REST API).");
+    if (org) {
+      console.log(`  Org: ${org.display_name ?? org.dev_slug ?? "?"} (${org.display_id ?? "?"})`);
+    }
     console.log(`  User: ${u?.full_name ?? u?.display_handle ?? "?"} (${u?.email ?? "no email"})`);
     console.log(`  display_id: ${u?.display_id ?? "?"}  id: ${u?.id ?? "?"}`);
     // Best-effort role surface: dev-users.self may not include role; fall
@@ -61,14 +69,30 @@ export async function doctorCommand(): Promise<void> {
     exitCode = 1;
   }
 
-  // 2. Anthropic key (existence only — don't burn a request).
+  // 2. Research PAT — used by `dia research` (read-only against internal org).
+  const researchPat = optionalEnv("DEVREV_RESEARCH_PAT");
+  if (researchPat) {
+    try {
+      const researchClient = new ReadOnlyDevRevClient({ pat: researchPat });
+      const researchId = await resolveOrgIdentity(researchClient);
+      console.log(`✓ DEVREV_RESEARCH_PAT is valid (read-only).`);
+      console.log(`  Research org: ${formatOrgBanner(researchId)}`);
+    } catch (e) {
+      console.error(`✗ DEVREV_RESEARCH_PAT check failed: ${e instanceof Error ? e.message : String(e)}`);
+      exitCode = 1;
+    }
+  } else {
+    console.log("- DEVREV_RESEARCH_PAT not set (only needed for `dia research`).");
+  }
+
+  // 3. Anthropic key (existence only — don't burn a request).
   if (optionalEnv("ANTHROPIC_API_KEY")) {
     console.log("✓ ANTHROPIC_API_KEY present.");
   } else {
     console.log("- ANTHROPIC_API_KEY not set (only needed for `plan` / `start` from a NL brief).");
   }
 
-  // 3. DevRev MCP — defaults to `dia mcp-serve` (the in-repo server).
+  // 4. DevRev MCP — defaults to `dia mcp-serve` (the in-repo server).
   const customCommand = optionalEnv("DEVREV_MCP_COMMAND");
   const mcp = new DevRevMcpClient();
   try {

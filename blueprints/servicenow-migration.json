@@ -1,0 +1,416 @@
+{
+  "name": "ServiceNow → DevRev migration POC",
+  "description": "Parallel-run DevRev environment for a ServiceNow customer. ServiceNow Incidents become DevRev tickets, Change Requests and Problems become issues, CMDB configuration items map to the parts hierarchy (product → capability → feature), and the Service Catalog becomes KB articles. Assignment Groups become DevRev groups. The AirSync snap-in keeps both systems in sync during the parallel-run period.",
+  "defaults": {
+    "owned_by": ["SELF"]
+  },
+  "parts": [
+    { "ref": "prod:it-services", "type": "product", "name": "IT Services" },
+    { "ref": "cap:infrastructure", "type": "capability", "name": "Infrastructure", "parent_ref": "prod:it-services" },
+    { "ref": "cap:end-user-computing", "type": "capability", "name": "End-User Computing", "parent_ref": "prod:it-services" },
+    { "ref": "cap:security", "type": "capability", "name": "Security & Compliance", "parent_ref": "prod:it-services" },
+    { "ref": "cap:applications", "type": "capability", "name": "Business Applications", "parent_ref": "prod:it-services" },
+    { "ref": "cap:service-desk", "type": "capability", "name": "Service Desk", "parent_ref": "prod:it-services" },
+    { "ref": "feat:network", "type": "feature", "name": "Network & Connectivity", "parent_ref": "cap:infrastructure" },
+    { "ref": "feat:servers", "type": "feature", "name": "Server & VM Management", "parent_ref": "cap:infrastructure" },
+    { "ref": "feat:storage", "type": "feature", "name": "Storage & Backup", "parent_ref": "cap:infrastructure" },
+    { "ref": "feat:laptops", "type": "feature", "name": "Laptop & Desktop Support", "parent_ref": "cap:end-user-computing" },
+    { "ref": "feat:mobile", "type": "feature", "name": "Mobile Device Management", "parent_ref": "cap:end-user-computing" },
+    { "ref": "feat:identity", "type": "feature", "name": "Identity & Access Management", "parent_ref": "cap:security" },
+    { "ref": "feat:vuln", "type": "feature", "name": "Vulnerability Management", "parent_ref": "cap:security" },
+    { "ref": "feat:erp", "type": "feature", "name": "ERP & Finance Systems", "parent_ref": "cap:applications" },
+    { "ref": "feat:crm-app", "type": "feature", "name": "CRM Application Support", "parent_ref": "cap:applications" },
+    { "ref": "feat:onboarding", "type": "feature", "name": "Employee Onboarding", "parent_ref": "cap:service-desk" },
+    { "ref": "feat:offboarding", "type": "feature", "name": "Employee Offboarding", "parent_ref": "cap:service-desk" }
+  ],
+  "tags": [
+    { "ref": "tag:incident", "name": "incident", "description": "Mapped from ServiceNow Incident table" },
+    { "ref": "tag:change-request", "name": "change-request", "description": "Mapped from ServiceNow Change Request table" },
+    { "ref": "tag:problem", "name": "problem", "description": "Mapped from ServiceNow Problem table" },
+    { "ref": "tag:sev1", "name": "sev1", "description": "ServiceNow severity 1 / Critical" },
+    { "ref": "tag:sev2", "name": "sev2", "description": "ServiceNow severity 2 / High" },
+    { "ref": "tag:major-incident", "name": "major-incident", "description": "ServiceNow major incident flag" },
+    { "ref": "tag:change-normal", "name": "change-normal", "description": "ServiceNow normal change type" },
+    { "ref": "tag:change-emergency", "name": "change-emergency", "description": "ServiceNow emergency change type" },
+    { "ref": "tag:migrated-from-servicenow", "name": "migrated-from-servicenow", "description": "Tracks objects migrated from ServiceNow" }
+  ],
+  "custom_stages": [
+    { "ref": "stage:pending-approval", "name": "Pending Approval", "state": "open", "ordinal": 120 },
+    { "ref": "stage:in-review", "name": "In Review", "state": "in_progress", "ordinal": 250 },
+    { "ref": "stage:pending-vendor", "name": "Pending Vendor", "state": "in_progress", "ordinal": 350 },
+    { "ref": "stage:pending-user", "name": "Pending User", "state": "in_progress", "ordinal": 450 },
+    { "ref": "stage:resolved", "name": "Resolved", "state": "closed", "ordinal": 850 }
+  ],
+  "groups": [
+    { "ref": "grp:l1-service-desk", "name": "L1 Service Desk", "description": "Maps to ServiceNow assignment group: Service Desk" },
+    { "ref": "grp:l2-infrastructure", "name": "L2 Infrastructure", "description": "Maps to ServiceNow assignment group: Infrastructure Support" },
+    { "ref": "grp:l2-euc", "name": "L2 End-User Computing", "description": "Maps to ServiceNow assignment group: Desktop Support" },
+    { "ref": "grp:l3-security", "name": "L3 Security", "description": "Maps to ServiceNow assignment group: Security Operations" },
+    { "ref": "grp:change-advisory", "name": "Change Advisory Board", "description": "Maps to ServiceNow CAB group" }
+  ],
+  "accounts": [
+    {
+      "ref": "acct:meridian",
+      "display_name": "Meridian Financial Group",
+      "description": "Large enterprise financial services customer — ServiceNow ITSM + ITOM footprint with 800+ users and strict SLA compliance requirements.",
+      "domains": ["meridianfg.com"]
+    },
+    {
+      "ref": "acct:stackbridge",
+      "display_name": "Stackbridge Manufacturing",
+      "description": "Mid-market manufacturing customer running ServiceNow for IT operations and facilities management.",
+      "domains": ["stackbridge.com"]
+    },
+    {
+      "ref": "acct:altavance",
+      "display_name": "Altavance Health Systems",
+      "description": "Healthcare provider with strict HIPAA compliance needs. ServiceNow used for clinical IT and security incident tracking.",
+      "domains": ["altavance.health"]
+    }
+  ],
+  "rev_orgs": [
+    {
+      "ref": "ro:meridian",
+      "display_name": "Meridian Financial Group",
+      "account_ref": "acct:meridian",
+      "domains": ["meridianfg.com"]
+    },
+    {
+      "ref": "ro:stackbridge",
+      "display_name": "Stackbridge Manufacturing",
+      "account_ref": "acct:stackbridge",
+      "domains": ["stackbridge.com"]
+    },
+    {
+      "ref": "ro:altavance",
+      "display_name": "Altavance Health Systems",
+      "account_ref": "acct:altavance",
+      "domains": ["altavance.health"]
+    }
+  ],
+  "rev_users": [
+    {
+      "ref": "ru:meridian-01",
+      "display_name": "Rachel Okafor",
+      "email": "r.okafor@meridianfg.com",
+      "rev_org_ref": "ro:meridian"
+    },
+    {
+      "ref": "ru:meridian-02",
+      "display_name": "James Whitfield",
+      "email": "j.whitfield@meridianfg.com",
+      "rev_org_ref": "ro:meridian"
+    },
+    {
+      "ref": "ru:stackbridge-01",
+      "display_name": "Dana Petrov",
+      "email": "d.petrov@stackbridge.com",
+      "rev_org_ref": "ro:stackbridge"
+    },
+    {
+      "ref": "ru:altavance-01",
+      "display_name": "Marcus Delgado",
+      "email": "m.delgado@altavance.health",
+      "rev_org_ref": "ro:altavance"
+    }
+  ],
+  "sla_policies": [
+    {
+      "name": "Enterprise SLA (Meridian)",
+      "description": "Strict SLA policy for Meridian Financial Group — financial services requires rapid response.",
+      "applies_to": "acct:meridian",
+      "targets": {
+        "first_response": { "p0": "15m", "p1": "30m", "p2": "2h", "p3": "8h" },
+        "resolution":     { "p0": "2h",  "p1": "4h",  "p2": "24h", "p3": "72h" }
+      }
+    },
+    {
+      "name": "Standard SLA (Commercial)",
+      "description": "Default SLA for commercial customers like Stackbridge and Altavance.",
+      "targets": {
+        "first_response": { "p0": "30m", "p1": "1h",  "p2": "4h",  "p3": "24h" },
+        "resolution":     { "p0": "4h",  "p1": "8h",  "p2": "48h", "p3": "120h" }
+      }
+    },
+    {
+      "name": "HIPAA Security SLA (Altavance)",
+      "description": "Healthcare-specific SLA with accelerated resolution for security incidents per HIPAA breach notification timelines.",
+      "applies_to": "acct:altavance",
+      "targets": {
+        "first_response": { "p0": "15m", "p1": "1h",  "p2": "4h",  "p3": "24h" },
+        "resolution":     { "p0": "4h",  "p1": "12h", "p2": "72h", "p3": "168h" }
+      }
+    }
+  ],
+  "works": [
+    {
+      "ref": "work:inc-001",
+      "type": "ticket",
+      "title": "VPN gateway unreachable — remote workers locked out",
+      "body": "Reported by Meridian trading floor users. VPN gateway at DC-East unresponsive since 06:42 UTC. Approximately 200 remote workers cannot access trading systems. ServiceNow incident INC0012847 migrated.",
+      "applies_to_part_ref": "feat:network",
+      "priority": "p0"
+    },
+    {
+      "ref": "work:inc-002",
+      "type": "ticket",
+      "title": "Email delivery failure for @meridianfg.com domain",
+      "body": "Inbound and outbound email failing intermittently since the O365 tenant migration last night. SPF/DKIM records may be misconfigured. ServiceNow incident INC0013001 migrated.",
+      "applies_to_part_ref": "cap:end-user-computing",
+      "priority": "p1"
+    },
+    {
+      "ref": "work:inc-003",
+      "type": "ticket",
+      "title": "Suspicious login attempts on domain admin accounts",
+      "body": "SOC alert triggered at 02:15 UTC. Six failed login attempts from IP 185.220.x.x against three domain admin accounts at Altavance. Accounts locked pending investigation. HIPAA incident potentially triggered. ServiceNow security incident SEC0002134 migrated.",
+      "applies_to_part_ref": "feat:identity",
+      "priority": "p0"
+    },
+    {
+      "ref": "work:inc-004",
+      "type": "ticket",
+      "title": "ERP payroll module errors during month-end close",
+      "body": "Stackbridge finance team unable to run month-end payroll batch — SAP module throwing timeout errors. Month-end close deadline in 6 hours. ServiceNow incident INC0010983 migrated.",
+      "applies_to_part_ref": "feat:erp",
+      "priority": "p1"
+    },
+    {
+      "ref": "work:inc-005",
+      "type": "ticket",
+      "title": "Primary storage array degraded — two drives failed",
+      "body": "RAID alert from NetApp storage array in Meridian data center. Two drives in RAID-6 group failed within 4 hours of each other. No data loss yet but third failure would cause outage. ServiceNow incident INC0013200 migrated.",
+      "applies_to_part_ref": "feat:storage",
+      "priority": "p1"
+    },
+    {
+      "ref": "work:cr-001",
+      "type": "issue",
+      "title": "Network firewall rule change for new trading API endpoints",
+      "body": "Change Request: Add firewall allowlist rules for three new trading API IPs (172.16.45.0/28) on perimeter firewall FW-PROD-01. CAB approval required. Maintenance window Saturday 02:00–04:00 UTC. ServiceNow CHG0004512 migrated.",
+      "applies_to_part_ref": "feat:network",
+      "priority": "p2"
+    },
+    {
+      "ref": "work:cr-002",
+      "type": "issue",
+      "title": "OS patching — Patch Tuesday rollout across 140 Windows servers",
+      "body": "Monthly Patch Tuesday rollout. 140 Windows Server 2019/2022 instances across Meridian and Stackbridge environments. Staged rollout: non-prod Thursday, prod Saturday. ServiceNow CHG0004489 migrated.",
+      "applies_to_part_ref": "feat:servers",
+      "priority": "p2"
+    },
+    {
+      "ref": "work:prb-001",
+      "type": "issue",
+      "title": "Root cause analysis: recurring VPN gateway instability",
+      "body": "Problem record linked to three separate VPN incidents over 60 days. Root cause suspected: memory leak in firmware version 9.1.4. Vendor ticket open with Palo Alto. ServiceNow PRB0000823 migrated.",
+      "applies_to_part_ref": "feat:network",
+      "priority": "p1"
+    }
+  ],
+  "links": [
+    {
+      "source_ref": "work:inc-001",
+      "target_ref": "work:prb-001",
+      "link_type": "is_dependent_on",
+      "rationale": "VPN incident linked to the underlying network stability problem record"
+    },
+    {
+      "source_ref": "work:cr-001",
+      "target_ref": "work:prb-001",
+      "link_type": "is_dependent_on",
+      "rationale": "Firewall change is part of the remediation plan for the VPN problem"
+    },
+    {
+      "source_ref": "work:cr-002",
+      "target_ref": "work:inc-002",
+      "link_type": "is_dependent_on",
+      "rationale": "OS patching rollout is related to email delivery failures triggered by server patch drift"
+    }
+  ],
+  "articles": [
+    {
+      "ref": "art:vpn-troubleshoot",
+      "title": "VPN Connectivity — Troubleshooting and Self-Service Reset",
+      "body": "Step-by-step guide for IT staff and end users: force VPN reconnect, clear credential cache, escalate to L2 Infrastructure when self-service fails. Includes known firmware quirk with Palo Alto 9.1.4 and workaround.",
+      "applies_to_part_ref": "feat:network",
+      "status": "published"
+    },
+    {
+      "ref": "art:firewall-change-process",
+      "title": "Firewall Change Request — Standard Operating Procedure",
+      "body": "How to submit a firewall change request in DevRev: required fields, CAB approval workflow, maintenance window scheduling, post-change validation checklist.",
+      "applies_to_part_ref": "feat:network",
+      "status": "published"
+    },
+    {
+      "ref": "art:patch-management-policy",
+      "title": "Patch Management Policy — Server and Endpoint Cadence",
+      "body": "Monthly Patch Tuesday schedule, staging order (dev → non-prod → prod), rollback criteria, and emergency patching process for zero-day vulnerabilities.",
+      "applies_to_part_ref": "feat:servers",
+      "status": "published"
+    },
+    {
+      "ref": "art:identity-incident-playbook",
+      "title": "Security Incident Playbook — Unauthorized Access Attempts",
+      "body": "Runbook for suspected identity compromise: account lockout steps, forensic log collection, HIPAA breach notification checklist (Altavance-specific), escalation to CISO.",
+      "applies_to_part_ref": "feat:identity",
+      "status": "published"
+    },
+    {
+      "ref": "art:erp-timeout-diagnosis",
+      "title": "SAP ERP — Month-End Close Timeout Diagnosis",
+      "body": "Common causes of SAP batch timeout during month-end close: connection pool exhaustion, tablespace near-capacity, background job queue depth. Includes SQL queries to diagnose in under 10 minutes.",
+      "applies_to_part_ref": "feat:erp",
+      "status": "published"
+    },
+    {
+      "ref": "art:storage-array-alert-response",
+      "title": "NetApp Storage Array — Drive Failure Alert Response",
+      "body": "RAID degraded alert handling: how to identify failed drives, engage vendor support, initiate emergency drive replacement, and communicate SLA risk to stakeholders.",
+      "applies_to_part_ref": "feat:storage",
+      "status": "published"
+    },
+    {
+      "ref": "art:employee-onboarding-checklist",
+      "title": "IT Onboarding Checklist — New Employee Day-1 Setup",
+      "body": "End-to-end IT onboarding: laptop imaging, Active Directory account creation, email provisioning, VPN token enrollment, software installs, and MDM enrollment. Maps to the ServiceNow Service Catalog 'New Employee Hardware & Access' request.",
+      "applies_to_part_ref": "feat:onboarding",
+      "status": "published"
+    },
+    {
+      "ref": "art:snow-to-devrev-migration-guide",
+      "title": "ServiceNow → DevRev Migration Guide for IT Admins",
+      "body": "How to export ServiceNow data for import into DevRev: Incident/Change/Problem table exports, CMDB structure mapping, assignment group migration, and SLA policy configuration in DevRev.",
+      "applies_to_part_ref": "cap:service-desk",
+      "status": "draft"
+    }
+  ],
+  "csv": [
+    {
+      "generator": "faker",
+      "scenario": "saas-support",
+      "entity": "tickets",
+      "count": 25,
+      "seed": 801
+    },
+    {
+      "generator": "faker",
+      "scenario": "saas-support",
+      "entity": "articles",
+      "count": 10,
+      "seed": 802
+    },
+    {
+      "generator": "faker",
+      "scenario": "b2b-sales",
+      "entity": "contacts",
+      "count": 15,
+      "seed": 803
+    }
+  ],
+  "generate_conversations": {
+    "scenario": "saas-support",
+    "per_ticket": 2,
+    "seed": 804
+  },
+  "integrations": ["slack"],
+  "plug_config": {
+    "welcome_message": "IT Service Desk — powered by DevRev. How can we help you today?",
+    "ai_agent_enabled": true,
+    "fallback_to_ticket": true,
+    "ai_grounding_notes": "This is an internal IT service desk. Users are employees reporting IT issues. Incidents are urgent operational problems; change requests need CAB approval; problems are root cause investigations. Refer to our KB articles for self-service steps before escalating."
+  },
+  "ui_guidance": [
+    {
+      "title": "Map ServiceNow priority/impact to DevRev priority",
+      "steps": [
+        "ServiceNow P1 (Critical) → DevRev p0 — major outage or security breach affecting business operations.",
+        "ServiceNow P2 (High) → DevRev p1 — significant impact on a team or service, workaround available.",
+        "ServiceNow P3 (Moderate) → DevRev p2 — limited impact, non-urgent.",
+        "ServiceNow P4/P5 (Low/Planning) → DevRev p3 — cosmetic issues, low-priority requests.",
+        "ServiceNow uses a priority matrix (Impact × Urgency). DevRev uses a single priority field. Use the Impact value as the primary driver when collapsing.",
+        "The 'major-incident' tag is added to any p0 ticket migrated from ServiceNow to flag it for major incident review in DevRev."
+      ]
+    },
+    {
+      "title": "Map ServiceNow tables to DevRev work types",
+      "steps": [
+        "ServiceNow Incident (incident table) → DevRev ticket (use the 'incident' tag).",
+        "ServiceNow Change Request (change_request table) → DevRev issue (use the 'change-request' tag). Change requests are planned work, not reactive support.",
+        "ServiceNow Problem (problem table) → DevRev issue (use the 'problem' tag). Problems track root cause investigations.",
+        "ServiceNow Service Catalog requests → DevRev ticket for end-user-facing requests, or issue for IT-internal requests.",
+        "ServiceNow Task (sys_task subtable) → DevRev issue linked to its parent incident/change via 'is_dependent_on'.",
+        "ServiceNow Event (em_event table) → DevRev incident (for major event correlation and P0 outage tracking)."
+      ]
+    },
+    {
+      "title": "Map ServiceNow CMDB to DevRev parts hierarchy",
+      "steps": [
+        "ServiceNow Application Service (top-level CMDB CI class) → DevRev product.",
+        "ServiceNow CI Class (e.g., Network, Server, Software) → DevRev capability under the relevant product.",
+        "Individual ServiceNow CIs (e.g., specific servers, apps) that need work tracking → DevRev feature under the matching capability.",
+        "Not every CI needs to be a part — only ones with recurring incidents or change requests benefit from the hierarchy.",
+        "Use this blueprint's parts hierarchy as a starting template. Adjust capability and feature names to match your CMDB CI classes before applying."
+      ]
+    },
+    {
+      "title": "Map ServiceNow workflow states to DevRev stages",
+      "steps": [
+        "This blueprint creates five custom stages to complement DevRev's built-in pipeline.",
+        "ServiceNow New/Open → DevRev backlog.",
+        "ServiceNow In Progress (assigned) → DevRev in_development.",
+        "ServiceNow On Hold (awaiting approval) → DevRev Pending Approval (custom stage, ordinal 120).",
+        "ServiceNow In Review / Awaiting Change → DevRev In Review (custom stage, ordinal 250).",
+        "ServiceNow On Hold (awaiting vendor) → DevRev Pending Vendor (custom stage, ordinal 350).",
+        "ServiceNow On Hold (awaiting user) → DevRev Pending User (custom stage, ordinal 450).",
+        "ServiceNow Resolved → DevRev Resolved (custom stage, ordinal 850).",
+        "ServiceNow Closed → DevRev completed (built-in closed state).",
+        "After applying, go to Settings → Object Customization → Stage Diagrams to configure allowed transitions."
+      ]
+    },
+    {
+      "title": "Importing your ServiceNow export",
+      "steps": [
+        "Export incidents from ServiceNow: Navigate to Incident → All → Export → CSV.",
+        "Useful columns to include: Number, Short description, Description, Priority, State, Assignment group, Assigned to, Category, Subcategory, Opened at, Resolved at, Configuration item.",
+        "Export change requests: Navigate to Change → All → Export → CSV. Include: Number, Short description, Type (Normal/Emergency/Standard), Risk, State, Assignment group, CAB date.",
+        "Drop each CSV next to this blueprint and add a `csv` entry: `{ \"path\": \"./incidents.csv\", \"entity\": \"tickets\" }` or `\"issues\"` for change requests.",
+        "Use `column_map` to remap ServiceNow column names — e.g., `{ \"Short description\": \"title\", \"Priority\": \"priority\", \"Assignment group\": \"owned_by\" }`.",
+        "For large exports (>1000 records), split by table type: incidents.csv, changes.csv, problems.csv."
+      ]
+    },
+    {
+      "title": "Assignment group to DevRev group migration",
+      "steps": [
+        "ServiceNow assignment groups are mapped to DevRev groups in this blueprint: L1 Service Desk, L2 Infrastructure, L2 End-User Computing, L3 Security, Change Advisory Board.",
+        "After applying, invite the actual team members into each DevRev group via Settings → Groups.",
+        "For the CAB group, use DevRev's approval workflow on change-request issues to replicate the CAB approval gate.",
+        "If your org has additional assignment groups, add them to the 'groups' section of this blueprint before applying."
+      ]
+    },
+    {
+      "title": "SLA policy configuration",
+      "steps": [
+        "This blueprint creates three SLA policies: Enterprise (Meridian), Standard (Commercial), and HIPAA Security (Altavance).",
+        "After applying, go to Settings → SLAs to assign each policy to the correct account or ticket category.",
+        "ServiceNow SLA timers pause when a ticket enters 'Pending User' or 'Pending Vendor' state — configure the same pause rules in DevRev's SLA settings.",
+        "HIPAA breach notification requires 60-day external reporting. Track this via a custom field on security incident tickets.",
+        "Adjust the first_response and resolution targets in this blueprint to match your existing ServiceNow SLA commitments before applying."
+      ]
+    },
+    {
+      "title": "Cutover and parallel-run playbook",
+      "doc_links": ["https://developer.devrev.ai/airsync/about"],
+      "steps": [
+        "Week 1–2: Apply this blueprint, configure groups, and validate the part hierarchy matches your CMDB.",
+        "Week 3–4: Begin routing new incidents into DevRev while ServiceNow remains the system of record. Use DevRev's email channel or PLuG widget for inbound.",
+        "Week 5–6: Enable the AirSync snap-in (Settings → Integrations → Snap-ins → Install ServiceNow Airsync) for bidirectional sync of open incidents.",
+        "Authenticate AirSync with your ServiceNow instance URL, admin username, and password.",
+        "Map ServiceNow tables to DevRev object types in the AirSync configuration.",
+        "Cutover: Freeze new ticket creation in ServiceNow. Export and import the open-ticket delta CSV. Disable the AirSync sync. Announce DevRev as the system of record.",
+        "Post-cutover: Archive the ServiceNow instance or put it in read-only mode. Migrate historical reports to DevRev Insights."
+      ]
+    }
+  ]
+}

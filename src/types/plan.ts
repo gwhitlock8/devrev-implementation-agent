@@ -16,6 +16,9 @@ export const PlanStepKindSchema = z.enum([
   "create_rev_org",
   "create_article",
   "create_timeline_entry",
+  "create_tag",
+  "create_custom_stage",
+  "create_group",
   "list_sprints",
   "noop",
 ]);
