@@ -11,7 +11,7 @@ Built for sales engineers who need a demo-ready org in minutes, not hours.
 
           ↓
 
-  Org: gdubtx (DEV-1jDEIKbvWW) — Gavin Whitlock <gavin@devrev.ai>
+  Org: example_org (DEV-1xxxxxxx) — Gavin <gavin@devrev.ai>
 
   Applying 60 step(s)…
 
