@@ -111,13 +111,13 @@ Copy [.env.example](.env.example) to `.env` or export variables directly:
 Every mutating command prints the org it's targeting before doing anything:
 
 ```
-  Org: gdubtx (DEV-1jDEIKbvWW) — Gavin Whitlock <gavin.whitlock@devrev.ai>
+  Org: example_org (DEV-1xxxxxx) — Gavin <gavin@devrev.ai>
 ```
 
 This is resolved via `dev-orgs.get` (inferred from the PAT) so you always know which org you're about to modify. The research command shows its own org context:
 
 ```
-  Research org: DevRev (DEV-0) — Gavin Whitlock <gavin.whitlock@devrev.ai>
+  Research org: DevRev (DEV-xxx) — Gavin <gavin@devrev.ai>
 ```
 
 `dia doctor` validates both PATs and shows both orgs side by side.
@@ -153,7 +153,7 @@ dia apply --json                   # machine-readable summary
 Dia creates objects in dependency order (parts first, then articles, works, accounts, contacts, links, timeline entries). Each step prints live progress:
 
 ```
-  Org: gdubtx (DEV-1jDEIKbvWW) — Gavin Whitlock <gavin.whitlock@devrev.ai>
+  Org: gdubtx (DEV-1xxxxx) — Gavin Whitlock <gavin.whitlock@devrev.ai>
 
   Applying 42 step(s)…
 
@@ -178,7 +178,7 @@ dia cleanup --dry-run                      # preview what would be deleted
 Dia reads the manifest from a prior apply and deletes objects in reverse dependency order: timeline entries, links, works, articles, tags, custom stages, groups, rev_orgs, accounts, and finally parts (leaf-first). The output includes a per-category breakdown:
 
 ```
-  Org: gdubtx (DEV-1jDEIKbvWW) — Gavin Whitlock <gavin.whitlock@devrev.ai>
+  Org: gdubtx (DEV-1xxxxx) — Gavin Whitlock <gavin.whitlock@devrev.ai>
 
   ✓ works.delete  TKT-123
   ✓ articles.delete  ART-45
@@ -214,7 +214,7 @@ dia empty --json       # machine-readable output
 Unlike `cleanup` (which reads a manifest), `empty` discovers all user-created objects in the org via list endpoints and deletes everything. Useful for resetting a demo org to a clean slate regardless of how the objects were created.
 
 ```
-  Org: gdubtx (DEV-1jDEIKbvWW) — Gavin Whitlock <gavin.whitlock@devrev.ai>
+  Org: example_org (DEV-1xxxxxx) — Gavin <gavin@devrev.ai>
 
   Discovering objects in the org…
 
@@ -251,7 +251,7 @@ dia research "top ticket themes" --model claude-opus-4-7
 Queries your internal DevRev org (via `DEVREV_RESEARCH_PAT`) and synthesizes a report with Claude. The workflow is token-efficient: all data gathering uses DevRev REST APIs directly (zero Anthropic tokens), with a single Claude call at the end for synthesis.
 
 ```
-  Research org: DevRev (DEV-0) — Gavin Whitlock <gavin.whitlock@devrev.ai>
+  Research org: DevRev (DEV-xxx) — Gavin <gavin@devrev.ai>
 
   🔍 Researching: "What are the most common customer issues?"
 
@@ -293,7 +293,7 @@ dia snapshot --json                             # machine-readable output
 Connects to your org using `DEVREV_PAT`, pages through every object type, and writes a portable `blueprint.json` you can immediately feed back into `dia plan` + `dia apply` to seed a new org.
 
 ```
-  Snapshotting org: gdubtx (DEV-0) — Gavin Whitlock <gavin.whitlock@devrev.ai>
+  Snapshotting org: example_org (DEV-0) — Gavin <gavin@devrev.ai>
 
   📸 Gathering org objects…
 
@@ -374,12 +374,12 @@ Validates all PATs, reports org identity, checks for the Anthropic API key, and 
 
 ```
 ✓ DevRev PAT is valid (REST API).
-  Org: gdubtx (DEV-1jDEIKbvWW)
-  User: Gavin Whitlock (gavin.whitlock@devrev.ai)
-  display_id: DEVU-1  id: don:identity:dvrv-us-1:devo/1jDEIKbvWW:devu/1
+  Org: example_org (DEV-1xxxxx)
+  User: Gavin (gavin@devrev.ai)
+  display_id: DEVU-1  id: don:identity:dvrv-us-1:devo/1xxxxx:devu/1
   User state: active
 ✓ DEVREV_RESEARCH_PAT is valid (read-only).
-  Research org: DevRev (DEV-0) — Gavin Whitlock <gavin.whitlock@devrev.ai>
+  Research org: DevRev (DEV-0) — Gavin <gavin@devrev.ai>
 ✓ ANTHROPIC_API_KEY present.
 ✓ DevRev MCP connected via built-in `dia mcp-serve`. 2 tools available.
 ```
