@@ -1,0 +1,47 @@
+{
+  "name": "Tags, stages & groups smoke test",
+  "description": "Validates tags.create, stages.custom.create, and groups.create API integration. Includes a minimal product hierarchy and one ticket for context.",
+  "defaults": { "owned_by": ["SELF"] },
+  "parts": [
+    { "ref": "prod:tsg", "type": "product", "name": "TSG Smoke Product" },
+    {
+      "ref": "cap:tsg",
+      "type": "capability",
+      "name": "TSG Smoke Capability",
+      "parent_ref": "prod:tsg"
+    },
+    {
+      "ref": "feat:tsg",
+      "type": "feature",
+      "name": "TSG Smoke Feature",
+      "parent_ref": "cap:tsg"
+    }
+  ],
+  "tags": [
+    { "ref": "tag:billing", "name": "billing", "description": "Billing and payment issues" },
+    { "ref": "tag:onboarding", "name": "onboarding", "description": "New customer setup" },
+    { "ref": "tag:bug", "name": "bug" },
+    { "ref": "tag:feature-request", "name": "feature-request" }
+  ],
+  "custom_stages": [
+    { "ref": "stage:triage", "name": "Triage", "state": "open", "ordinal": 0 },
+    { "ref": "stage:investigating", "name": "Investigating", "state": "in_progress", "ordinal": 1 },
+    { "ref": "stage:waiting-on-customer", "name": "Waiting on Customer", "state": "in_progress", "ordinal": 2 },
+    { "ref": "stage:resolved", "name": "Resolved", "state": "closed", "ordinal": 3 }
+  ],
+  "groups": [
+    { "ref": "grp:l1-support", "name": "L1 Support", "description": "Front-line triage and first response" },
+    { "ref": "grp:escalation", "name": "Escalation Team", "description": "Handles P0/P1 escalations" }
+  ],
+  "works": [
+    {
+      "ref": "tic:tsg-1",
+      "type": "ticket",
+      "title": "TSG smoke ticket — billing question",
+      "body": "Test ticket to validate alongside tags/stages/groups.",
+      "applies_to_part_ref": "feat:tsg",
+      "external_ref": "tsg-smoke-tic-1",
+      "priority": "p2"
+    }
+  ]
+}

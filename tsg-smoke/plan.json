@@ -1,0 +1,217 @@
+{
+  "version": 1,
+  "title": "Tags, stages & groups smoke test",
+  "summary": "Validates tags.create, stages.custom.create, and groups.create API integration. Includes a minimal product hierarchy and one ticket for context.",
+  "steps": [
+    {
+      "id": "part-1",
+      "kind": "create_part",
+      "title": "Create product: TSG Smoke Product",
+      "rationale": "Blueprint part",
+      "payload": {
+        "manifest_ref": "prod:tsg",
+        "body": {
+          "type": "product",
+          "name": "TSG Smoke Product",
+          "owned_by": [
+            "SELF"
+          ]
+        }
+      }
+    },
+    {
+      "id": "part-2",
+      "kind": "create_part",
+      "title": "Create capability: TSG Smoke Capability",
+      "rationale": "Blueprint part (parent ref: prod:tsg)",
+      "payload": {
+        "manifest_ref": "cap:tsg",
+        "parent_ref": "prod:tsg",
+        "body": {
+          "type": "capability",
+          "name": "TSG Smoke Capability",
+          "owned_by": [
+            "SELF"
+          ],
+          "parent_part": {
+            "__ref": "prod:tsg"
+          }
+        }
+      }
+    },
+    {
+      "id": "part-3",
+      "kind": "create_part",
+      "title": "Create feature: TSG Smoke Feature",
+      "rationale": "Blueprint part (parent ref: cap:tsg)",
+      "payload": {
+        "manifest_ref": "feat:tsg",
+        "parent_ref": "cap:tsg",
+        "body": {
+          "type": "feature",
+          "name": "TSG Smoke Feature",
+          "owned_by": [
+            "SELF"
+          ],
+          "parent_part": {
+            "__ref": "cap:tsg"
+          }
+        }
+      }
+    },
+    {
+      "id": "work-4",
+      "kind": "create_work",
+      "title": "Create ticket: TSG smoke ticket — billing question",
+      "rationale": "Blueprint work ref=tic:tsg-1",
+      "payload": {
+        "manifest_ref": "tic:tsg-1",
+        "body": {
+          "type": "ticket",
+          "title": "TSG smoke ticket — billing question",
+          "body": "Test ticket to validate alongside tags/stages/groups.",
+          "applies_to_part": {
+            "__ref": "feat:tsg"
+          },
+          "owned_by": [
+            "SELF"
+          ],
+          "external_ref": "tsg-smoke-tic-1",
+          "severity": "medium"
+        }
+      }
+    },
+    {
+      "id": "tag-5",
+      "kind": "create_tag",
+      "title": "Create tag: billing",
+      "rationale": "Blueprint tag ref=tag:billing",
+      "payload": {
+        "manifest_ref": "tag:billing",
+        "body": {
+          "name": "billing",
+          "description": "Billing and payment issues"
+        }
+      }
+    },
+    {
+      "id": "tag-6",
+      "kind": "create_tag",
+      "title": "Create tag: onboarding",
+      "rationale": "Blueprint tag ref=tag:onboarding",
+      "payload": {
+        "manifest_ref": "tag:onboarding",
+        "body": {
+          "name": "onboarding",
+          "description": "New customer setup"
+        }
+      }
+    },
+    {
+      "id": "tag-7",
+      "kind": "create_tag",
+      "title": "Create tag: bug",
+      "rationale": "Blueprint tag ref=tag:bug",
+      "payload": {
+        "manifest_ref": "tag:bug",
+        "body": {
+          "name": "bug"
+        }
+      }
+    },
+    {
+      "id": "tag-8",
+      "kind": "create_tag",
+      "title": "Create tag: feature-request",
+      "rationale": "Blueprint tag ref=tag:feature-request",
+      "payload": {
+        "manifest_ref": "tag:feature-request",
+        "body": {
+          "name": "feature-request"
+        }
+      }
+    },
+    {
+      "id": "stage-9",
+      "kind": "create_custom_stage",
+      "title": "Create custom stage: Triage (open, ordinal 0)",
+      "rationale": "Blueprint custom stage ref=stage:triage",
+      "payload": {
+        "manifest_ref": "stage:triage",
+        "body": {
+          "name": "Triage",
+          "state": "open",
+          "ordinal": 0
+        }
+      }
+    },
+    {
+      "id": "stage-10",
+      "kind": "create_custom_stage",
+      "title": "Create custom stage: Investigating (in_progress, ordinal 1)",
+      "rationale": "Blueprint custom stage ref=stage:investigating",
+      "payload": {
+        "manifest_ref": "stage:investigating",
+        "body": {
+          "name": "Investigating",
+          "state": "in_progress",
+          "ordinal": 1
+        }
+      }
+    },
+    {
+      "id": "stage-11",
+      "kind": "create_custom_stage",
+      "title": "Create custom stage: Waiting on Customer (in_progress, ordinal 2)",
+      "rationale": "Blueprint custom stage ref=stage:waiting-on-customer",
+      "payload": {
+        "manifest_ref": "stage:waiting-on-customer",
+        "body": {
+          "name": "Waiting on Customer",
+          "state": "in_progress",
+          "ordinal": 2
+        }
+      }
+    },
+    {
+      "id": "stage-12",
+      "kind": "create_custom_stage",
+      "title": "Create custom stage: Resolved (closed, ordinal 3)",
+      "rationale": "Blueprint custom stage ref=stage:resolved",
+      "payload": {
+        "manifest_ref": "stage:resolved",
+        "body": {
+          "name": "Resolved",
+          "state": "closed",
+          "ordinal": 3
+        }
+      }
+    },
+    {
+      "id": "group-13",
+      "kind": "create_group",
+      "title": "Create group: L1 Support",
+      "rationale": "Blueprint group ref=grp:l1-support",
+      "payload": {
+        "manifest_ref": "grp:l1-support",
+        "body": {
+          "name": "L1 Support",
+          "description": "Front-line triage and first response"
+        }
+      }
+    },
+    {
+      "id": "group-14",
+      "kind": "create_group",
+      "title": "Create group: Escalation Team",
+      "rationale": "Blueprint group ref=grp:escalation",
+      "payload": {
+        "manifest_ref": "grp:escalation",
+        "body": {
+          "name": "Escalation Team",
+          "description": "Handles P0/P1 escalations"
+        }
+      }
+    }
+  ]
+}

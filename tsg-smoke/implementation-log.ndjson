@@ -1,0 +1,14 @@
+{"ts":"2026-05-08T20:31:54.413Z","step_id":"cleanup-tic:tsg-1","phase":"execute","operation":"works.delete","status":"ok","request":{"id":"don:core:dvrv-us-1:devo/1jDEIKbvWW:ticket/55"},"response_summary":{"deleted":"TKT-55"}}
+{"ts":"2026-05-08T20:31:54.531Z","step_id":"cleanup-tag:billing","phase":"execute","operation":"tags.delete","status":"ok","request":{"id":"don:core:dvrv-us-1:devo/1jDEIKbvWW:tag/7"},"response_summary":{"deleted":"tag-7"}}
+{"ts":"2026-05-08T20:31:54.667Z","step_id":"cleanup-tag:onboarding","phase":"execute","operation":"tags.delete","status":"ok","request":{"id":"don:core:dvrv-us-1:devo/1jDEIKbvWW:tag/8"},"response_summary":{"deleted":"tag-8"}}
+{"ts":"2026-05-08T20:31:54.789Z","step_id":"cleanup-tag:bug","phase":"execute","operation":"tags.delete","status":"ok","request":{"id":"don:core:dvrv-us-1:devo/1jDEIKbvWW:tag/9"},"response_summary":{"deleted":"tag-9"}}
+{"ts":"2026-05-08T20:31:54.923Z","step_id":"cleanup-tag:feature-request","phase":"execute","operation":"tags.delete","status":"ok","request":{"id":"don:core:dvrv-us-1:devo/1jDEIKbvWW:tag/10"},"response_summary":{"deleted":"tag-10"}}
+{"ts":"2026-05-08T20:31:55.015Z","step_id":"cleanup-stage:triage","phase":"execute","operation":"stages.custom.delete","status":"skipped","rationale":"Object already deleted or not found"}
+{"ts":"2026-05-08T20:31:55.113Z","step_id":"cleanup-stage:investigating","phase":"execute","operation":"stages.custom.delete","status":"skipped","rationale":"Object already deleted or not found"}
+{"ts":"2026-05-08T20:31:55.211Z","step_id":"cleanup-stage:waiting-on-customer","phase":"execute","operation":"stages.custom.delete","status":"skipped","rationale":"Object already deleted or not found"}
+{"ts":"2026-05-08T20:31:55.305Z","step_id":"cleanup-stage:resolved","phase":"execute","operation":"stages.custom.delete","status":"skipped","rationale":"Object already deleted or not found"}
+{"ts":"2026-05-08T20:31:55.399Z","step_id":"cleanup-grp:l1-support","phase":"execute","operation":"groups.delete","status":"skipped","rationale":"Object already deleted or not found"}
+{"ts":"2026-05-08T20:31:55.500Z","step_id":"cleanup-grp:escalation","phase":"execute","operation":"groups.delete","status":"skipped","rationale":"Object already deleted or not found"}
+{"ts":"2026-05-08T20:31:55.641Z","step_id":"cleanup-feat:tsg","phase":"execute","operation":"parts.delete","status":"ok","request":{"id":"don:core:dvrv-us-1:devo/1jDEIKbvWW:feature/38"},"response_summary":{"deleted":"FEAT-38"}}
+{"ts":"2026-05-08T20:31:55.773Z","step_id":"cleanup-cap:tsg","phase":"execute","operation":"parts.delete","status":"ok","request":{"id":"don:core:dvrv-us-1:devo/1jDEIKbvWW:capability/23"},"response_summary":{"deleted":"CAPL-23"}}
+{"ts":"2026-05-08T20:31:55.913Z","step_id":"cleanup-prod:tsg","phase":"execute","operation":"parts.delete","status":"ok","request":{"id":"don:core:dvrv-us-1:devo/1jDEIKbvWW:product/13"},"response_summary":{"deleted":"PROD-13"}}

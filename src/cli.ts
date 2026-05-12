@@ -11,17 +11,104 @@ import { mcpServeCommand } from "./commands/mcpServeCmd.js";
 import { planCommand, DEFAULT_OUTPUT_DIR } from "./commands/planCmd.js";
 import { startCommand } from "./commands/startCmd.js";
 import { verifyCommand } from "./commands/verifyCmd.js";
+import { loadCommand } from "./commands/loadCmd.js";
 import { loadEnvFiles } from "./config/loadEnv.js";
 import { SCENARIO_NAMES } from "./parsers/blueprint.js";
 
 loadEnvFiles();
+
+// ── Custom help text ──────────────────────────────────────────────────────────
+const HELP_TEXT = `
+  ┌─────────────────────────────────────────────────────────────┐
+  │  Dia — your DevRev implementation engineer                  │
+  │  Blueprint → Plan → Apply → Cleanup                        │
+  └─────────────────────────────────────────────────────────────┘
+
+  QUICK START
+  ───────────
+  1. Check your environment:           dia doctor
+  2. Stand up a POC from a brief:      dia start "SaaS company, 2 products, 20 tickets"
+  3. Or use a pre-built blueprint:     dia plan -b blueprints/hubspot-migration.json
+  4. Apply the plan to DevRev:         dia apply
+  5. Tear it down when done:           dia cleanup
+
+  COMMANDS
+  ────────
+  Lifecycle:
+    start [brief]        One-shot: NL brief → blueprint → plan → apply
+    plan [brief]         Synthesize a blueprint and plan (does NOT apply)
+    apply                Execute the most recent plan against DevRev
+    cleanup              Delete all objects created by the last apply
+    empty                Delete ALL user-created objects in the org
+
+  Data & import:
+    load <file>          Import custom objects from CSV/TSV/JSON/JSONL/XLSX
+    generate <scenario>  Emit faker-generated CSVs (tickets, contacts, etc.)
+    research <query>     Query your internal org and get a Claude-synthesized report
+    snapshot             Export the live org state as a blueprint.json
+
+  Utilities:
+    doctor               Validate PATs, API key, and MCP connectivity
+    verify               Confirm every manifest entry still exists in the org
+    mcp-serve            Run as a DevRev MCP server over stdio
+
+  COMMON FLAGS
+  ────────────
+  --dry-run         Preview actions without making API calls
+  --json            Machine-readable output (all commands)
+  --model [model]   Choose the Anthropic model (or 'pick' for interactive)
+  -o, --output-dir  Output directory for plan/manifest files
+  -b, --blueprint   Use a pre-built blueprint instead of NL synthesis
+  -y, --yes         Skip interactive confirmation
+
+  EXAMPLES
+  ────────
+  # Natural language → full POC in one command
+  dia start "Fintech company migrating from Zendesk, 3 products, 50 tickets" --yes
+
+  # Use a migration blueprint with dry-run preview
+  dia plan -b blueprints/servicenow-migration.json
+  dia apply --dry-run
+  dia apply
+
+  # Export your current org as a reusable blueprint
+  dia snapshot -o my-org-template.json
+
+  # Import custom objects from a spreadsheet
+  dia load bookings.xlsx -l booking -p BOK --annotate
+  dia load guests.csv -l guest --dry-run
+
+  # Generate synthetic data
+  dia generate saas-support -e tickets -r 100 --seed 42 > tickets.csv
+
+  # Research your internal org
+  dia research "What are the most common P0 ticket themes?"
+
+  # Reset everything
+  dia cleanup                    # only objects from the last apply
+  dia empty --yes                # nuke the entire org
+
+  ENVIRONMENT
+  ───────────
+  DEVREV_PAT            API token for the demo/target org (required)
+  ANTHROPIC_API_KEY     Anthropic key for NL synthesis (required for plan/start)
+  DEVREV_RESEARCH_PAT   Separate read-only PAT for your internal org (optional)
+  ANTHROPIC_MODEL       Default model override (optional)
+
+  Run \`dia doctor\` to validate your setup.
+  Run \`dia help <command>\` for detailed flags on any command.
+`;
 
 const program = new Command();
 program
   .name("dia")
   .description("Dia — your DevRev implementation engineer. Blueprint → plan → apply → cleanup.")
   .version("0.2.0")
-  .option("--verbose", "Print stack traces for unhandled errors", false);
+  .option("--verbose", "Print stack traces for unhandled errors", false)
+  .addHelpCommand(false);
+
+// Override Commander's built-in help output with our custom guide.
+program.helpInformation = () => HELP_TEXT;
 
 program
   .command("start")
@@ -200,11 +287,151 @@ program
   });
 
 program
+  .command("load")
+  .argument("<data-path>", "Path to the data file (CSV, TSV, JSON, JSONL, or XLSX)")
+  .description("Import custom objects from a data file into DevRev")
+  .requiredOption("-l, --leaf-type <type>", "Custom object leaf type (e.g., 'booking', 'guest')")
+  .option("-p, --id-prefix <prefix>", "ID prefix (default: first 3 chars of leaf-type uppercased)")
+  .option("-s, --subtypes <list>", "Subtypes as comma-separated or JSON array")
+  .option("--field-type-overrides <json>", "Field type overrides as JSON (e.g., '{\"balance\": \"double\"}')")
+  .option("--annotate", "Add timeline annotations to created objects", false)
+  .option("--annotation-template <text>", "Custom annotation body text")
+  .option("--max-workers <n>", "Parallel workers", (v: string) => Number(v), 5)
+  .option("--batch-size <n>", "Batch size for parallel processing", (v: string) => Number(v), 50)
+  .option("--dry-run", "Parse file and show inferred schema without creating anything", false)
+  .option("-v, --verbose", "Enable verbose output", false)
+  .option("--json", "Emit machine-readable output", false)
+  .action(async (dataPath: string, opts) => {
+    await loadCommand({
+      dataPath,
+      leafType: opts.leafType,
+      idPrefix: opts.idPrefix,
+      subtypes: opts.subtypes,
+      fieldTypeOverrides: opts.fieldTypeOverrides,
+      annotate: Boolean(opts.annotate),
+      annotationTemplate: opts.annotationTemplate,
+      maxWorkers: opts.maxWorkers,
+      batchSize: opts.batchSize,
+      dryRun: Boolean(opts.dryRun),
+      verbose: Boolean(opts.verbose),
+      json: Boolean(opts.json),
+    });
+  });
+
+program
   .command("doctor")
   .description("Check DevRev PAT, Anthropic key, and DevRev MCP connectivity")
   .action(async () => {
     await doctorCommand();
   });
+
+// ── Custom help text for the top-level `dia` command ──────────────────────────
+// Commander's built-in `help` command and `-h` flag trigger this.
+
+const HELP_TEXT = `
+  ┌─────────────────────────────────────────────────────────────┐
+  │  Dia — your DevRev implementation engineer                  │
+  │  Blueprint → Plan → Apply → Cleanup                        │
+  └─────────────────────────────────────────────────────────────┘
+
+  QUICK START
+  ───────────
+  1. Check your environment:           dia doctor
+  2. Stand up a POC from a brief:      dia start "SaaS company, 2 products, 20 tickets"
+  3. Or use a pre-built blueprint:     dia plan -b blueprints/hubspot-migration.json
+  4. Apply the plan to DevRev:         dia apply
+  5. Tear it down when done:           dia cleanup
+
+  COMMANDS
+  ────────
+  Lifecycle:
+    start [brief]        One-shot: NL brief → blueprint → plan → apply
+    plan [brief]         Synthesize a blueprint and plan (does NOT apply)
+    apply                Execute the most recent plan against DevRev
+    cleanup              Delete all objects created by the last apply
+    empty                Delete ALL user-created objects in the org
+
+  Data & import:
+    load <file>          Import custom objects from CSV/TSV/JSON/JSONL/XLSX
+    generate <scenario>  Emit faker-generated CSVs (tickets, contacts, etc.)
+    research <query>     Query your internal org and get a Claude-synthesized report
+    snapshot             Export the live org state as a blueprint.json
+
+  Utilities:
+    doctor               Validate PATs, API key, and MCP connectivity
+    verify               Confirm every manifest entry still exists in the org
+    mcp-serve            Run as a DevRev MCP server over stdio
+
+  COMMON FLAGS
+  ────────────
+  --dry-run         Preview actions without making API calls
+  --json            Machine-readable output (all commands)
+  --model [model]   Choose the Anthropic model (or 'pick' for interactive)
+  -o, --output-dir  Output directory for plan/manifest files
+  -b, --blueprint   Use a pre-built blueprint instead of NL synthesis
+  -y, --yes         Skip interactive confirmation
+
+  EXAMPLES
+  ────────
+  # Natural language → full POC in one command
+  dia start "Fintech company migrating from Zendesk, 3 products, 50 tickets" --yes
+
+  # Use a migration blueprint with dry-run preview
+  dia plan -b blueprints/servicenow-migration.json
+  dia apply --dry-run
+  dia apply
+
+  # Export your current org as a reusable blueprint
+  dia snapshot -o my-org-template.json
+
+  # Import custom objects from a spreadsheet
+  dia load bookings.xlsx -l booking -p BOK --annotate
+  dia load guests.csv -l guest --dry-run
+
+  # Generate synthetic data
+  dia generate saas-support -e tickets -r 100 --seed 42 > tickets.csv
+
+  # Research your internal org
+  dia research "What are the most common P0 ticket themes?"
+
+  # Reset everything
+  dia cleanup                    # only objects from the last apply
+  dia empty --yes                # nuke the entire org
+
+  ENVIRONMENT
+  ───────────
+  DEVREV_PAT            API token for the demo/target org (required)
+  ANTHROPIC_API_KEY     Anthropic key for NL synthesis (required for plan/start)
+  DEVREV_RESEARCH_PAT   Separate read-only PAT for your internal org (optional)
+  ANTHROPIC_MODEL       Default model override (optional)
+
+  Run \`dia doctor\` to validate your setup.
+  Run \`dia help <command>\` for detailed flags on any command.
+`;
+
+program
+  .command("help")
+  .argument("[command]", "Show detailed help for a specific command")
+  .description("Show usage guide with examples")
+  .action((cmd?: string) => {
+    if (cmd) {
+      const sub = program.commands.find((c) => c.name() === cmd);
+      if (sub) {
+        sub.outputHelp();
+      } else {
+        console.error(`Unknown command: ${cmd}. Run \`dia help\` for a list.`);
+        process.exitCode = 1;
+      }
+      return;
+    }
+    console.log(HELP_TEXT);
+  });
+
+// Also show our custom help when --help / -h is used on the top-level command.
+program.on("option:help", () => {
+  console.log(HELP_TEXT);
+  process.exit(0);
+});
 
 program.parseAsync(process.argv).catch((e) => {
   const verbose = Boolean(program.opts().verbose);

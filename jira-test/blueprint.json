@@ -1,0 +1,223 @@
+{
+  "name": "Jira → DevRev migration POC",
+  "description": "Parallel-run DevRev environment seeded for a Jira customer. Jira projects map to DevRev products, components/epics become capabilities, and story/bug/task issue types become features. Auto-detects Jira CSV exports (Issue key, Summary, Issue Type headers).",
+  "defaults": {
+    "owned_by": [
+      "SELF"
+    ]
+  },
+  "parts": [
+    {
+      "ref": "prod:core",
+      "type": "product",
+      "name": "Core Platform"
+    },
+    {
+      "ref": "cap:backend",
+      "type": "capability",
+      "name": "Backend Services",
+      "parent_ref": "prod:core"
+    },
+    {
+      "ref": "cap:frontend",
+      "type": "capability",
+      "name": "Frontend",
+      "parent_ref": "prod:core"
+    },
+    {
+      "ref": "cap:infrastructure",
+      "type": "capability",
+      "name": "Infrastructure",
+      "parent_ref": "prod:core"
+    },
+    {
+      "ref": "cap:devops",
+      "type": "capability",
+      "name": "DevOps & CI/CD",
+      "parent_ref": "prod:core"
+    },
+    {
+      "ref": "feat:api",
+      "type": "feature",
+      "name": "REST API",
+      "parent_ref": "cap:backend"
+    },
+    {
+      "ref": "feat:auth",
+      "type": "feature",
+      "name": "Authentication",
+      "parent_ref": "cap:backend"
+    },
+    {
+      "ref": "feat:dashboard",
+      "type": "feature",
+      "name": "Dashboard",
+      "parent_ref": "cap:frontend"
+    },
+    {
+      "ref": "feat:monitoring",
+      "type": "feature",
+      "name": "Monitoring & Alerts",
+      "parent_ref": "cap:infrastructure"
+    },
+    {
+      "ref": "feat:pipelines",
+      "type": "feature",
+      "name": "Build Pipelines",
+      "parent_ref": "cap:devops"
+    }
+  ],
+  "generate_conversations": {
+    "scenario": "dev-tooling",
+    "per_ticket": 2,
+    "seed": 702
+  },
+  "integrations": [
+    "jira"
+  ],
+  "tags": [
+    {
+      "ref": "tag:bug",
+      "name": "bug",
+      "description": "Mapped from Jira issue type: Bug"
+    },
+    {
+      "ref": "tag:story",
+      "name": "story",
+      "description": "Mapped from Jira issue type: Story"
+    },
+    {
+      "ref": "tag:task",
+      "name": "task",
+      "description": "Mapped from Jira issue type: Task"
+    },
+    {
+      "ref": "tag:epic",
+      "name": "epic",
+      "description": "Mapped from Jira issue type: Epic"
+    },
+    {
+      "ref": "tag:tech-debt",
+      "name": "tech-debt"
+    },
+    {
+      "ref": "tag:customer-reported",
+      "name": "customer-reported"
+    }
+  ],
+  "custom_stages": [
+    {
+      "ref": "stage:ready",
+      "name": "Ready for Dev",
+      "state": "open",
+      "ordinal": 150
+    },
+    {
+      "ref": "stage:code-review",
+      "name": "Code Review",
+      "state": "in_progress",
+      "ordinal": 350
+    },
+    {
+      "ref": "stage:qa-validation",
+      "name": "QA Validation",
+      "state": "in_progress",
+      "ordinal": 450
+    }
+  ],
+  "groups": [
+    {
+      "ref": "grp:backend-team",
+      "name": "Backend Team",
+      "description": "Maps to Jira project role: Developers (backend)"
+    },
+    {
+      "ref": "grp:frontend-team",
+      "name": "Frontend Team",
+      "description": "Maps to Jira project role: Developers (frontend)"
+    },
+    {
+      "ref": "grp:qa",
+      "name": "QA Team",
+      "description": "Maps to Jira project role: QA"
+    }
+  ],
+  "csv": [
+    {
+      "entity": "issues",
+      "generator": "faker",
+      "scenario": "dev-tooling",
+      "count": 20,
+      "seed": 701
+    }
+  ],
+  "ui_guidance": [
+    {
+      "title": "Map Jira priorities to DevRev",
+      "steps": [
+        "Jira Highest/Blocker → DevRev priority p0 (priority_v2: 1)",
+        "Jira High → p1 (priority_v2: 2)",
+        "Jira Medium → p2 (priority_v2: 3)",
+        "Jira Low/Lowest → p3 (priority_v2: 4)",
+        "Note: Jira uses 5-level priorities; DevRev uses 4. Merge Highest+Blocker → p0 and Low+Lowest → p3."
+      ],
+      "doc_links": [
+        "https://devrev.ai/docs/product/issues"
+      ]
+    },
+    {
+      "title": "Map Jira issue types to DevRev work types",
+      "steps": [
+        "Jira Bug → DevRev issue (use the 'bug' tag to preserve the type distinction)",
+        "Jira Story → DevRev issue (use the 'story' tag)",
+        "Jira Task → DevRev issue (use the 'task' tag)",
+        "Jira Epic → DevRev capability or feature (epics become parts in the hierarchy, not work items)",
+        "Jira Sub-task → DevRev issue linked to its parent via 'is_dependent_on'",
+        "If you need tickets instead of issues for customer-facing items, use type 'ticket' in the CSV column_map."
+      ]
+    },
+    {
+      "title": "Map Jira project structure to DevRev parts",
+      "steps": [
+        "Each Jira Project becomes a DevRev product (top-level part).",
+        "Jira Components become DevRev capabilities under that product.",
+        "Jira Epics become DevRev features (or capabilities if they're large initiatives).",
+        "Jira Fix Versions → use DevRev sprints or custom fields to track release targets.",
+        "Adjust the parts hierarchy in this blueprint to mirror your actual Jira project structure before applying."
+      ]
+    },
+    {
+      "title": "Map Jira workflow to DevRev stages",
+      "steps": [
+        "This blueprint creates custom stages that complement DevRev's built-in pipeline: Ready for Dev, Code Review, and QA Validation. Combined with the built-in stages (backlog, in_development, completed), these mirror a typical Jira Kanban workflow.",
+        "After applying, go to Settings → Object Customization → Stage Diagrams to set allowed transitions.",
+        "If your Jira workflow has additional statuses (e.g., 'Waiting for QA', 'Blocked'), add them as custom_stages in this blueprint before applying.",
+        "Map Jira workflow transitions to DevRev stage diagram transitions for parity."
+      ]
+    },
+    {
+      "title": "Importing your real Jira export",
+      "steps": [
+        "Export issues from Jira: Issues → Search → Export → CSV (All fields or Current fields).",
+        "Drop the CSV next to this blueprint and add a `csv` entry: `{ \"path\": \"./jira-issues.csv\", \"entity\": \"issues\" }`.",
+        "The agent auto-detects Jira headers (Issue key, Summary, Issue Type, Assignee, Reporter, Priority, Status) and applies the column map automatically.",
+        "Override mappings via `column_map` if your Jira instance uses custom fields.",
+        "For large exports (>1000 issues), split into multiple CSVs by project to keep apply runs manageable."
+      ]
+    },
+    {
+      "title": "Bidirectional Jira sync (parallel-run period)",
+      "steps": [
+        "Settings → Integrations → Snap-ins → Install the Jira Airsync snap-in.",
+        "Authenticate with your Jira Cloud instance (API token + email).",
+        "Map Jira Projects → DevRev Products (use the parts hierarchy seeded above as the target).",
+        "Map Jira issue types → DevRev work types (issues for engineering items, tickets for support).",
+        "Enable bidirectional sync for the parallel-run period.",
+        "After cutover: disable sync, import the final delta CSV, then archive the Jira project."
+      ],
+      "doc_links": [
+        "https://developer.devrev.ai/airsync/about"
+      ]
+    }
+  ]
+}
