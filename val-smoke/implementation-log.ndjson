@@ -1,5 +1,0 @@
-{"ts":"2026-05-08T16:42:17.423Z","step_id":"cleanup-tic:smoke","phase":"execute","operation":"works.delete","status":"ok","request":{"id":"don:core:dvrv-us-1:devo/1jDEIKbvWW:ticket/9"},"response_summary":{"deleted":"TKT-9"}}
-{"ts":"2026-05-08T16:42:17.582Z","step_id":"cleanup-art:smoke","phase":"execute","operation":"articles.delete","status":"ok","request":{"id":"don:core:dvrv-us-1:devo/1jDEIKbvWW:article/2"},"response_summary":{"deleted":"ART-2"}}
-{"ts":"2026-05-08T16:42:17.742Z","step_id":"cleanup-feat:smoke","phase":"execute","operation":"parts.delete","status":"ok","request":{"id":"don:core:dvrv-us-1:devo/1jDEIKbvWW:feature/17"},"response_summary":{"deleted":"FEAT-17"}}
-{"ts":"2026-05-08T16:42:17.917Z","step_id":"cleanup-cap:smoke","phase":"execute","operation":"parts.delete","status":"ok","request":{"id":"don:core:dvrv-us-1:devo/1jDEIKbvWW:capability/10"},"response_summary":{"deleted":"CAPL-10"}}
-{"ts":"2026-05-08T16:42:18.074Z","step_id":"cleanup-prod:smoke","phase":"execute","operation":"parts.delete","status":"ok","request":{"id":"don:core:dvrv-us-1:devo/1jDEIKbvWW:product/8"},"response_summary":{"deleted":"PROD-8"}}

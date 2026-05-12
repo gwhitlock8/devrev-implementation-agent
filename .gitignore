@@ -3,8 +3,16 @@ dist/
 *.log
 .env
 .DS_Store
+coverage/
+
+# Dia output directories (contain org-specific DON IDs, emails, manifests)
+poc-output/
+out-test/
+val-*/
+test-ru/
+
+# Per-run artifacts (may appear anywhere)
 implementation-log.json
 implementation-report.md
 run-manifest.json
 .plan-output/
-coverage/
