@@ -5,110 +5,25 @@ import { cleanupCommand } from "./commands/cleanupCmd.js";
 import { doctorCommand } from "./commands/doctor.js";
 import { emptyCommand } from "./commands/emptyCmd.js";
 import { generateCommand } from "./commands/generateCmd.js";
+import { helpCommand } from "./commands/helpCmd.js";
+import { loadCommand } from "./commands/loadCmd.js";
+import { narrativeCommand } from "./commands/narrativeCmd.js";
 import { researchCommand } from "./commands/researchCmd.js";
-import { snapshotCommand } from "./commands/snapshotCmd.js";
 import { mcpServeCommand } from "./commands/mcpServeCmd.js";
 import { planCommand, DEFAULT_OUTPUT_DIR } from "./commands/planCmd.js";
 import { startCommand } from "./commands/startCmd.js";
 import { verifyCommand } from "./commands/verifyCmd.js";
-import { loadCommand } from "./commands/loadCmd.js";
 import { loadEnvFiles } from "./config/loadEnv.js";
 import { SCENARIO_NAMES } from "./parsers/blueprint.js";
 
 loadEnvFiles();
-
-// ── Custom help text ──────────────────────────────────────────────────────────
-const HELP_TEXT = `
-  ┌─────────────────────────────────────────────────────────────┐
-  │  Dia — your DevRev implementation engineer                  │
-  │  Blueprint → Plan → Apply → Cleanup                        │
-  └─────────────────────────────────────────────────────────────┘
-
-  QUICK START
-  ───────────
-  1. Check your environment:           dia doctor
-  2. Stand up a POC from a brief:      dia start "SaaS company, 2 products, 20 tickets"
-  3. Or use a pre-built blueprint:     dia plan -b blueprints/hubspot-migration.json
-  4. Apply the plan to DevRev:         dia apply
-  5. Tear it down when done:           dia cleanup
-
-  COMMANDS
-  ────────
-  Lifecycle:
-    start [brief]        One-shot: NL brief → blueprint → plan → apply
-    plan [brief]         Synthesize a blueprint and plan (does NOT apply)
-    apply                Execute the most recent plan against DevRev
-    cleanup              Delete all objects created by the last apply
-    empty                Delete ALL user-created objects in the org
-
-  Data & import:
-    load <file>          Import custom objects from CSV/TSV/JSON/JSONL/XLSX
-    generate <scenario>  Emit faker-generated CSVs (tickets, contacts, etc.)
-    research <query>     Query your internal org and get a Claude-synthesized report
-    snapshot             Export the live org state as a blueprint.json
-
-  Utilities:
-    doctor               Validate PATs, API key, and MCP connectivity
-    verify               Confirm every manifest entry still exists in the org
-    mcp-serve            Run as a DevRev MCP server over stdio
-
-  COMMON FLAGS
-  ────────────
-  --dry-run         Preview actions without making API calls
-  --json            Machine-readable output (all commands)
-  --model [model]   Choose the Anthropic model (or 'pick' for interactive)
-  -o, --output-dir  Output directory for plan/manifest files
-  -b, --blueprint   Use a pre-built blueprint instead of NL synthesis
-  -y, --yes         Skip interactive confirmation
-
-  EXAMPLES
-  ────────
-  # Natural language → full POC in one command
-  dia start "Fintech company migrating from Zendesk, 3 products, 50 tickets" --yes
-
-  # Use a migration blueprint with dry-run preview
-  dia plan -b blueprints/servicenow-migration.json
-  dia apply --dry-run
-  dia apply
-
-  # Export your current org as a reusable blueprint
-  dia snapshot -o my-org-template.json
-
-  # Import custom objects from a spreadsheet
-  dia load bookings.xlsx -l booking -p BOK --annotate
-  dia load guests.csv -l guest --dry-run
-
-  # Generate synthetic data
-  dia generate saas-support -e tickets -r 100 --seed 42 > tickets.csv
-
-  # Research your internal org
-  dia research "What are the most common P0 ticket themes?"
-
-  # Reset everything
-  dia cleanup                    # only objects from the last apply
-  dia empty --yes                # nuke the entire org
-
-  ENVIRONMENT
-  ───────────
-  DEVREV_PAT            API token for the demo/target org (required)
-  ANTHROPIC_API_KEY     Anthropic key for NL synthesis (required for plan/start)
-  DEVREV_RESEARCH_PAT   Separate read-only PAT for your internal org (optional)
-  ANTHROPIC_MODEL       Default model override (optional)
-
-  Run \`dia doctor\` to validate your setup.
-  Run \`dia help <command>\` for detailed flags on any command.
-`;
 
 const program = new Command();
 program
   .name("dia")
   .description("Dia — your DevRev implementation engineer. Blueprint → plan → apply → cleanup.")
   .version("0.2.0")
-  .option("--verbose", "Print stack traces for unhandled errors", false)
-  .addHelpCommand(false);
-
-// Override Commander's built-in help output with our custom guide.
-program.helpInformation = () => HELP_TEXT;
+  .option("--verbose", "Print stack traces for unhandled errors", false);
 
 program
   .command("start")
@@ -122,7 +37,6 @@ program
   .option("--dry-run", "Apply in dry-run mode (no DevRev mutations)", false)
   .option("--no-mcp", "Skip the DevRev MCP lookup_org tool during planning")
   .option("--json", "Emit a machine-readable summary instead of the human view", false)
-  .option("--model [model]", "Anthropic model to use (omit value or use 'pick' for an interactive picker)", undefined)
   .action(async (briefParts: string[], opts) => {
     await startCommand({
       prompt: briefParts.length ? briefParts.join(" ") : undefined,
@@ -134,7 +48,6 @@ program
       dryRun: Boolean(opts.dryRun),
       noMcp: opts.mcp === false,
       json: Boolean(opts.json),
-      model: opts.model === true ? "pick" : opts.model,
     });
   });
 
@@ -147,7 +60,6 @@ program
   .option("-o, --output-dir <dir>", "Output directory", DEFAULT_OUTPUT_DIR)
   .option("--no-mcp", "Skip the DevRev MCP lookup_org tool during planning")
   .option("--json", "Emit a machine-readable summary instead of the human view", false)
-  .option("--model [model]", "Anthropic model to use (omit value or use 'pick' for an interactive picker)", undefined)
   .action(async (briefParts: string[], opts) => {
     await planCommand({
       prompt: briefParts.length ? briefParts.join(" ") : undefined,
@@ -156,8 +68,6 @@ program
       outputDir: opts.outputDir,
       noMcp: opts.mcp === false,
       json: Boolean(opts.json),
-      // --model with no value → opts.model is true (Commander quirk for optional args)
-      model: opts.model === true ? "pick" : opts.model,
     });
   });
 
@@ -186,23 +96,49 @@ program
 program
   .command("generate")
   .argument("<scenario>", `Scenario preset (${SCENARIO_NAMES.join(" | ")})`)
-  .description("Emit a faker-generated CSV for an entity")
+  .description("Emit a faker-generated CSV for an entity (supports custom:<leaf-type>)")
   .option(
     "-e, --entity <kind>",
-    "contacts | accounts | tickets | issues | articles",
+    "contacts | accounts | tickets | issues | articles | custom:<leaf-type>",
     "contacts",
   )
   .option("-r, --rows <n>", "Row count", (v: string) => Number(v), 25)
   .option("-s, --seed <n>", "Faker seed (deterministic output)", (v: string) => Number(v))
   .option("-o, --output <path>", "Write to file (default: stdout)")
   .action(async (scenario: string, opts) => {
-    await generateCommand({
-      scenario,
-      entity: opts.entity,
-      rows: opts.rows,
-      seed: opts.seed,
-      output: opts.output,
-    });
+    const entity: string = opts.entity;
+    if (entity.startsWith("custom:")) {
+      // Custom object entity generation
+      const { generateCustomRows, customRowsToCsv } = await import("./generateCustom.js");
+      const leafType = entity.slice("custom:".length);
+      if (!leafType) {
+        console.error("Error: custom entity requires a leaf type, e.g. custom:booking");
+        process.exitCode = 1;
+        return;
+      }
+      const rows = generateCustomRows({
+        leafType,
+        count: opts.rows,
+        seed: opts.seed,
+        scenario,
+      });
+      const csv = customRowsToCsv(rows);
+      if (opts.output) {
+        const { writeFile } = await import("node:fs/promises");
+        await writeFile(opts.output, csv, "utf8");
+        console.log(`Wrote ${rows.length} ${leafType} records to ${opts.output}`);
+      } else {
+        process.stdout.write(csv);
+      }
+    } else {
+      await generateCommand({
+        scenario,
+        entity: opts.entity,
+        rows: opts.rows,
+        seed: opts.seed,
+        output: opts.output,
+      });
+    }
   });
 
 program
@@ -254,41 +190,39 @@ program
   .command("research")
   .argument("<query...>", "Natural-language research query about the DevRev org")
   .description("Research the internal DevRev org (read-only) and synthesize a report with Claude")
-  .option("--model [model]", "Anthropic model to use (omit value or use 'pick' for an interactive picker)", undefined)
+  .option("--model <model>", "Anthropic model override")
   .option("--json", "Emit the report as JSON", false)
   .action(async (queryParts: string[], opts) => {
     await researchCommand({
       query: queryParts.join(" "),
-      model: opts.model === true ? "pick" : opts.model,
+      model: opts.model,
       json: Boolean(opts.json),
     });
   });
 
 program
-  .command("snapshot")
-  .description("Export the live org state as a blueprint JSON — a portable mirror you can apply to a fresh org")
-  .option("-o, --output <path>", "Output file path (default: snapshot-<timestamp>.json)")
-  .option("--no-works", "Omit tickets and issues from the snapshot")
-  .option("--no-customers", "Omit accounts, rev orgs, and rev users from the snapshot")
-  .option("--max-works <n>", "Maximum tickets + issues to include (default: 50)", (v: string) => Number(v))
-  .option("--max-accounts <n>", "Maximum accounts to include (default: 20)", (v: string) => Number(v))
-  .option("--max-articles <n>", "Maximum KB articles to include (default: 40)", (v: string) => Number(v))
-  .option("--json", "Emit a machine-readable summary instead of the human view", false)
-  .action(async (opts) => {
-    await snapshotCommand({
-      output: opts.output,
-      noWorks: opts.works === false,
-      noCustomers: opts.customers === false,
-      maxWorks: opts.maxWorks,
-      maxAccounts: opts.maxAccounts,
-      maxArticles: opts.maxArticles,
+  .command("narrative")
+  .argument("<blueprint>", "Path to a blueprint JSON file")
+  .description("Generate a click-by-click demo runbook from a blueprint")
+  .option("-o, --output <path>", "Write Markdown to file (default: stdout)")
+  .option("-t, --title <title>", "Override the narrative title")
+  .option("--persona <role>", "Target persona (default: 'Sales Engineer')")
+  .option("--no-cleanup", "Omit the teardown/cleanup section")
+  .option("--json", "Emit as structured JSON", false)
+  .action(async (blueprintPath: string, opts) => {
+    await narrativeCommand({
+      blueprintPath,
+      outputPath: opts.output,
+      title: opts.title,
+      persona: opts.persona,
+      includeCleanup: opts.cleanup !== false,
       json: Boolean(opts.json),
     });
   });
 
 program
   .command("load")
-  .argument("<data-path>", "Path to the data file (CSV, TSV, JSON, JSONL, or XLSX)")
+  .argument("<data-path>", "Path to the data file (CSV, TSV, JSON, or JSONL)")
   .description("Import custom objects from a data file into DevRev")
   .requiredOption("-l, --leaf-type <type>", "Custom object leaf type (e.g., 'booking', 'guest')")
   .option("-p, --id-prefix <prefix>", "ID prefix (default: first 3 chars of leaf-type uppercased)")
@@ -325,113 +259,12 @@ program
     await doctorCommand();
   });
 
-// ── Custom help text for the top-level `dia` command ──────────────────────────
-// Commander's built-in `help` command and `-h` flag trigger this.
-
-const HELP_TEXT = `
-  ┌─────────────────────────────────────────────────────────────┐
-  │  Dia — your DevRev implementation engineer                  │
-  │  Blueprint → Plan → Apply → Cleanup                        │
-  └─────────────────────────────────────────────────────────────┘
-
-  QUICK START
-  ───────────
-  1. Check your environment:           dia doctor
-  2. Stand up a POC from a brief:      dia start "SaaS company, 2 products, 20 tickets"
-  3. Or use a pre-built blueprint:     dia plan -b blueprints/hubspot-migration.json
-  4. Apply the plan to DevRev:         dia apply
-  5. Tear it down when done:           dia cleanup
-
-  COMMANDS
-  ────────
-  Lifecycle:
-    start [brief]        One-shot: NL brief → blueprint → plan → apply
-    plan [brief]         Synthesize a blueprint and plan (does NOT apply)
-    apply                Execute the most recent plan against DevRev
-    cleanup              Delete all objects created by the last apply
-    empty                Delete ALL user-created objects in the org
-
-  Data & import:
-    load <file>          Import custom objects from CSV/TSV/JSON/JSONL/XLSX
-    generate <scenario>  Emit faker-generated CSVs (tickets, contacts, etc.)
-    research <query>     Query your internal org and get a Claude-synthesized report
-    snapshot             Export the live org state as a blueprint.json
-
-  Utilities:
-    doctor               Validate PATs, API key, and MCP connectivity
-    verify               Confirm every manifest entry still exists in the org
-    mcp-serve            Run as a DevRev MCP server over stdio
-
-  COMMON FLAGS
-  ────────────
-  --dry-run         Preview actions without making API calls
-  --json            Machine-readable output (all commands)
-  --model [model]   Choose the Anthropic model (or 'pick' for interactive)
-  -o, --output-dir  Output directory for plan/manifest files
-  -b, --blueprint   Use a pre-built blueprint instead of NL synthesis
-  -y, --yes         Skip interactive confirmation
-
-  EXAMPLES
-  ────────
-  # Natural language → full POC in one command
-  dia start "Fintech company migrating from Zendesk, 3 products, 50 tickets" --yes
-
-  # Use a migration blueprint with dry-run preview
-  dia plan -b blueprints/servicenow-migration.json
-  dia apply --dry-run
-  dia apply
-
-  # Export your current org as a reusable blueprint
-  dia snapshot -o my-org-template.json
-
-  # Import custom objects from a spreadsheet
-  dia load bookings.xlsx -l booking -p BOK --annotate
-  dia load guests.csv -l guest --dry-run
-
-  # Generate synthetic data
-  dia generate saas-support -e tickets -r 100 --seed 42 > tickets.csv
-
-  # Research your internal org
-  dia research "What are the most common P0 ticket themes?"
-
-  # Reset everything
-  dia cleanup                    # only objects from the last apply
-  dia empty --yes                # nuke the entire org
-
-  ENVIRONMENT
-  ───────────
-  DEVREV_PAT            API token for the demo/target org (required)
-  ANTHROPIC_API_KEY     Anthropic key for NL synthesis (required for plan/start)
-  DEVREV_RESEARCH_PAT   Separate read-only PAT for your internal org (optional)
-  ANTHROPIC_MODEL       Default model override (optional)
-
-  Run \`dia doctor\` to validate your setup.
-  Run \`dia help <command>\` for detailed flags on any command.
-`;
-
 program
   .command("help")
-  .argument("[command]", "Show detailed help for a specific command")
-  .description("Show usage guide with examples")
-  .action((cmd?: string) => {
-    if (cmd) {
-      const sub = program.commands.find((c) => c.name() === cmd);
-      if (sub) {
-        sub.outputHelp();
-      } else {
-        console.error(`Unknown command: ${cmd}. Run \`dia help\` for a list.`);
-        process.exitCode = 1;
-      }
-      return;
-    }
-    console.log(HELP_TEXT);
+  .description("Show a friendly usage guide for all Dia commands")
+  .action(async () => {
+    await helpCommand();
   });
-
-// Also show our custom help when --help / -h is used on the top-level command.
-program.on("option:help", () => {
-  console.log(HELP_TEXT);
-  process.exit(0);
-});
 
 program.parseAsync(process.argv).catch((e) => {
   const verbose = Boolean(program.opts().verbose);

@@ -1,5 +1,5 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { synthesizeBlueprintWithClaude, type PlannerEvent } from "../agent/planner.js";
 import { loadEnvFiles, optionalEnv, requireEnv } from "../config/loadEnv.js";
 import { pickModel } from "../util/modelPicker.js";
@@ -11,6 +11,7 @@ import { detectDuplicatePartNames, type PreflightWarning } from "../plan/preflig
 import { loadBlueprintFile, type Blueprint } from "../parsers/blueprint.js";
 import type { Plan } from "../types/plan.js";
 import { Progress } from "../util/progress.js";
+import { generateNarrative } from "../commands/narrativeCmd.js";
 
 export const DEFAULT_OUTPUT_DIR = "poc-output";
 
@@ -185,11 +186,23 @@ export async function planCommand(args: PlanCliArgs): Promise<PlanResult> {
   const planPath = join(args.outputDir, "plan.json");
   await writeFile(planPath, JSON.stringify(built.plan, null, 2), "utf8");
 
+  // Auto-generate the demo narrative runbook alongside the plan
+  const narrativePath = join(args.outputDir, "demo-narrative.md");
+  const blueprintFile = args.blueprint ? basename(args.blueprint) : "blueprint.json";
+  const narrativeMarkdown = generateNarrative(blueprint, {
+    title: blueprint.name ?? blueprintFile.replace(/\.json$/, ""),
+    persona: "Sales Engineer",
+    blueprintFile,
+    includeCleanup: true,
+  });
+  await writeFile(narrativePath, narrativeMarkdown, "utf8");
+
   if (args.json) {
     process.stdout.write(
       `${JSON.stringify({
         blueprintPath,
         planPath,
+        narrativePath,
         outputDir: args.outputDir,
         stepCount: built.plan.steps.length,
         title: built.plan.title,
@@ -198,10 +211,11 @@ export async function planCommand(args: PlanCliArgs): Promise<PlanResult> {
     );
   } else {
     console.log(formatPlanHuman(built.plan));
-    console.log(`\nWrote blueprint: ${blueprintPath}`);
-    console.log(`Wrote plan:      ${planPath}`);
+    console.log(`\nWrote blueprint:  ${blueprintPath}`);
+    console.log(`Wrote plan:       ${planPath}`);
+    console.log(`Wrote narrative:  ${narrativePath}`);
     if (built.imports.some((i) => i.source_path.startsWith(join(args.outputDir, "generated")))) {
-      console.log(`Generated CSVs:  ${join(args.outputDir, "generated")}`);
+      console.log(`Generated CSVs:   ${join(args.outputDir, "generated")}`);
     }
   }
   return { blueprint, plan: built.plan, outputDir: args.outputDir, blueprintPath, planPath };

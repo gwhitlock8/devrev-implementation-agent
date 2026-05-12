@@ -208,10 +208,10 @@ export async function processRowsInBatches(
     leafType,
     leafTypeNormalized,
     subtypeNormalized,
-    idPrefix,
+    idPrefix: _idPrefix,
     annotate,
     annotationTemplate,
-    maxWorkers,
+    maxWorkers: _maxWorkers,
     batchSize,
     onProgress,
   } = config;

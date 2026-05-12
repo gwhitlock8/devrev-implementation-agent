@@ -11,7 +11,7 @@ Built for sales engineers who need a demo-ready org in minutes, not hours.
 
           ↓
 
-  Org: example_org (DEV-1xxxxxxx) — Gavin <gavin@devrev.ai>
+  Org: gdubtx (DEV-1jDEIKbvWW) — Gavin Whitlock <gavin@devrev.ai>
 
   Applying 60 step(s)…
 
@@ -74,11 +74,14 @@ cp .env.example .env
 # Check your setup
 dia doctor
 
-# Plan a POC from natural language
+# Plan a POC from natural language (also generates demo-narrative.md)
 dia plan "SaaS support POC for Acme with auth, billing, and integrations capabilities"
 
-# Review the plan, then apply
+# Review the plan and narrative, then apply
 dia apply
+
+# Follow the demo narrative to deliver the demo
+open poc-output/demo-narrative.md
 
 # When you're done, clean up
 dia cleanup
@@ -111,13 +114,13 @@ Copy [.env.example](.env.example) to `.env` or export variables directly:
 Every mutating command prints the org it's targeting before doing anything:
 
 ```
-  Org: example_org (DEV-1xxxxxx) — Gavin <gavin@devrev.ai>
+  Org: gdubtx (DEV-1jDEIKbvWW) — Gavin Whitlock <gavin.whitlock@devrev.ai>
 ```
 
 This is resolved via `dev-orgs.get` (inferred from the PAT) so you always know which org you're about to modify. The research command shows its own org context:
 
 ```
-  Research org: DevRev (DEV-xxx) — Gavin <gavin@devrev.ai>
+  Research org: DevRev (DEV-0) — Gavin Whitlock <gavin.whitlock@devrev.ai>
 ```
 
 `dia doctor` validates both PATs and shows both orgs side by side.
@@ -128,7 +131,7 @@ This is resolved via `dev-orgs.get` (inferred from the PAT) so you always know w
 
 ### `dia plan` — synthesize a blueprint and plan
 
-Give Dia a natural-language brief and she'll produce a `blueprint.json` (what to create) and a `plan.json` (ordered API steps):
+Give Dia a natural-language brief and she'll produce a `blueprint.json` (what to create), a `plan.json` (ordered API steps), and a `demo-narrative.md` (click-by-click runbook for delivering the demo):
 
 ```bash
 dia plan "Stand up a POC for fintech company Initech with auth, payments, and compliance capabilities, 15 support tickets, and a Slack integration"
@@ -153,7 +156,7 @@ dia apply --json                   # machine-readable summary
 Dia creates objects in dependency order (parts first, then articles, works, accounts, contacts, links, timeline entries). Each step prints live progress:
 
 ```
-  Org: gdubtx (DEV-1xxxxx) — Gavin Whitlock <gavin.whitlock@devrev.ai>
+  Org: gdubtx (DEV-1jDEIKbvWW) — Gavin Whitlock <gavin.whitlock@devrev.ai>
 
   Applying 42 step(s)…
 
@@ -178,7 +181,7 @@ dia cleanup --dry-run                      # preview what would be deleted
 Dia reads the manifest from a prior apply and deletes objects in reverse dependency order: timeline entries, links, works, articles, tags, custom stages, groups, rev_orgs, accounts, and finally parts (leaf-first). The output includes a per-category breakdown:
 
 ```
-  Org: gdubtx (DEV-1xxxxx) — Gavin Whitlock <gavin.whitlock@devrev.ai>
+  Org: gdubtx (DEV-1jDEIKbvWW) — Gavin Whitlock <gavin.whitlock@devrev.ai>
 
   ✓ works.delete  TKT-123
   ✓ articles.delete  ART-45
@@ -214,7 +217,7 @@ dia empty --json       # machine-readable output
 Unlike `cleanup` (which reads a manifest), `empty` discovers all user-created objects in the org via list endpoints and deletes everything. Useful for resetting a demo org to a clean slate regardless of how the objects were created.
 
 ```
-  Org: example_org (DEV-1xxxxxx) — Gavin <gavin@devrev.ai>
+  Org: gdubtx (DEV-1jDEIKbvWW) — Gavin Whitlock <gavin.whitlock@devrev.ai>
 
   Discovering objects in the org…
 
@@ -251,7 +254,7 @@ dia research "top ticket themes" --model claude-opus-4-7
 Queries your internal DevRev org (via `DEVREV_RESEARCH_PAT`) and synthesizes a report with Claude. The workflow is token-efficient: all data gathering uses DevRev REST APIs directly (zero Anthropic tokens), with a single Claude call at the end for synthesis.
 
 ```
-  Research org: DevRev (DEV-xxx) — Gavin <gavin@devrev.ai>
+  Research org: DevRev (DEV-0) — Gavin Whitlock <gavin.whitlock@devrev.ai>
 
   🔍 Researching: "What are the most common customer issues?"
 
@@ -279,62 +282,32 @@ Queries your internal DevRev org (via `DEVREV_RESEARCH_PAT`) and synthesizes a r
 
 **Read-only guarantee:** The `ReadOnlyDevRevClient` enforces an allowlist of operations (`*.list`, `*.get`, `*.search`, `dev-users.self`, `*.export`). Any mutating call is blocked at the client layer before reaching the network.
 
-### `dia snapshot` — export live org state as a blueprint
+### `dia narrative` — click-by-click demo runbook
 
 ```bash
-dia snapshot                                    # snapshot to snapshot-<timestamp>.json
-dia snapshot -o my-org.json                     # named output
-dia snapshot --no-works                         # parts, tags, stages, groups, accounts only
-dia snapshot --no-customers                     # parts, tags, stages, groups, works, articles only
-dia snapshot --max-works 100 --max-accounts 50  # raise the default caps
-dia snapshot --json                             # machine-readable output
+dia narrative jira-migration.json -o demo-runbook.md
+dia narrative blueprint.json -t "Acme POC" --persona "Account Executive"
+dia narrative ai-first-showcase.json --no-cleanup
 ```
 
-Connects to your org using `DEVREV_PAT`, pages through every object type, and writes a portable `blueprint.json` you can immediately feed back into `dia plan` + `dia apply` to seed a new org.
+Generates a Markdown runbook that an SE can follow to recreate and deliver a demo. The narrative is tailored to the blueprint's content — it only includes phases for features that are actually present (articles, integrations, custom objects, PLuG, etc.).
+
+Each phase includes:
+- **Talking points** — what to say to the prospect during this section
+- **Click-by-click steps** — exact UI navigation paths
+- **Computer prompts** — copy-paste prompts for Computer that work against the demo data
+- **Verification steps** — what to confirm before moving on
+
+The narrative is also **auto-generated alongside every plan**. When you run `dia plan` or `dia start`, a `demo-narrative.md` file is written to the output directory automatically:
 
 ```
-  Snapshotting org: example_org (DEV-0) — Gavin <gavin@devrev.ai>
-
-  📸 Gathering org objects…
-
-    Listing parts…
-    Listing tags…
-    Listing custom stages…
-    Listing groups…
-    Listing accounts…
-    Listing rev orgs…
-    Listing rev users…
-    Listing tickets…
-    Listing issues…
-    Listing articles…
-
-  📊 Captured:
-     Parts:         42
-     Tags:          9
-     Custom stages: 4
-     Groups:        5
-     Accounts:      12
-     Rev orgs:      12
-     Rev users:     38
-     Works:         50
-     Articles:      27
-
-✓ Snapshot written to: snapshot-1747012345678.json
-  Total objects: 199
-
-Next steps:
-  Review and edit the snapshot before applying — remove sensitive data,
-  trim works to a representative sample, and adjust any refs that collide.
-  Then apply to a fresh org:
-    dia plan --blueprint snapshot-1747012345678.json
-    dia apply
+poc-output/
+├── blueprint.json
+├── plan.json
+└── demo-narrative.md    ← auto-generated runbook
 ```
 
-**What is captured:** parts hierarchy, tags, custom stages, groups, accounts, rev orgs, rev users, works (tickets + issues), and KB articles.
-
-**What is intentionally omitted:** timeline entries (ephemeral conversation data), SLA policies (no public list endpoint), links (require both objects to exist first — add manually), plug_config (org-level setting), and CSV generators (not needed for live data).
-
-**Default caps per object type:** 20 accounts, 30 rev orgs, 50 rev users, 50 works, 40 articles. All caps are overridable with `--max-*` flags.
+Flags: `-o <path>` (output file), `-t <title>`, `--persona <role>`, `--no-cleanup`, `--json`.
 
 ### `dia start` — one-shot pipeline
 
@@ -354,7 +327,17 @@ dia generate b2b-sales -e contacts -r 25 -o contacts.csv
 dia generate dev-tooling -e articles -r 10 > kb.csv
 ```
 
-Scenarios: `saas-support` | `b2b-sales` | `dev-tooling`. Entities: `contacts` | `accounts` | `tickets` | `issues` | `articles`. Seeded output is deterministic — same seed, same data.
+Scenarios: `saas-support` | `b2b-sales` | `dev-tooling`. Entities: `contacts` | `accounts` | `tickets` | `issues` | `articles` | `custom:<leaf-type>`. Seeded output is deterministic — same seed, same data.
+
+Custom entity generation supports smart templates for common POC types:
+
+```bash
+dia generate saas-support -e custom:booking -r 50 > bookings.csv
+dia generate b2b-sales -e custom:asset -r 25 -o assets.csv
+dia generate dev-tooling -e custom:iot -r 100 --seed 42
+```
+
+Known templates with domain-specific fields: `booking`, `asset`, `inventory`, `order`, `iot`/`sensor`, `employee`. Any other name generates a sensible generic schema.
 
 ### `dia verify` — confirm manifest state
 
@@ -374,12 +357,12 @@ Validates all PATs, reports org identity, checks for the Anthropic API key, and 
 
 ```
 ✓ DevRev PAT is valid (REST API).
-  Org: example_org (DEV-1xxxxx)
-  User: Gavin (gavin@devrev.ai)
-  display_id: DEVU-1  id: don:identity:dvrv-us-1:devo/1xxxxx:devu/1
+  Org: gdubtx (DEV-1jDEIKbvWW)
+  User: Gavin Whitlock (gavin.whitlock@devrev.ai)
+  display_id: DEVU-1  id: don:identity:dvrv-us-1:devo/1jDEIKbvWW:devu/1
   User state: active
 ✓ DEVREV_RESEARCH_PAT is valid (read-only).
-  Research org: DevRev (DEV-0) — Gavin <gavin@devrev.ai>
+  Research org: DevRev (DEV-0) — Gavin Whitlock <gavin.whitlock@devrev.ai>
 ✓ ANTHROPIC_API_KEY present.
 ✓ DevRev MCP connected via built-in `dia mcp-serve`. 2 tools available.
 ```
@@ -408,6 +391,7 @@ A blueprint is a JSON file describing what Dia should create. She generates thes
 | `tags[]` | `tags.create` | Categorization tags for tickets, issues, and articles |
 | `custom_stages[]` | `stages.custom.create` | Custom ticket/issue lifecycle stages |
 | `groups[]` | `groups.create` | Support teams and routing groups |
+| `custom_objects[]` | `schemas.custom.set` + `custom-objects.create` | Custom object schemas + bulk record loading |
 
 ### What Dia generates as UI guidance
 

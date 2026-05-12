@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { mkdtemp, writeFile, readFile } from "node:fs/promises";
+import { describe, it, expect, beforeEach } from "vitest";
+import { mkdtemp, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import type { RunManifest } from "../executor/manifest.js";
@@ -19,11 +19,6 @@ describe("dia cleanup", () => {
     await writeFile(join(tempDir, "run-manifest.json"), JSON.stringify(manifest, null, 2));
   }
 
-  /** Read the manifest back after cleanup. */
-  async function readManifest(): Promise<RunManifest> {
-    const raw = await readFile(join(tempDir, "run-manifest.json"), "utf8");
-    return JSON.parse(raw);
-  }
 
   it("sorts deletions in correct dependency order", async () => {
     // Import the module to test sorting logic
