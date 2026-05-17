@@ -207,6 +207,7 @@ program
   .option("-o, --output <path>", "Write Markdown to file (default: stdout)")
   .option("-t, --title <title>", "Override the narrative title")
   .option("--persona <role>", "Target persona (default: 'Sales Engineer')")
+  .option("--discovery", "Run interactive discovery Q&A to tailor the narrative to the prospect", false)
   .option("--no-cleanup", "Omit the teardown/cleanup section")
   .option("--json", "Emit as structured JSON", false)
   .action(async (blueprintPath: string, opts) => {
@@ -215,6 +216,7 @@ program
       outputPath: opts.output,
       title: opts.title,
       persona: opts.persona,
+      includeDiscovery: Boolean(opts.discovery),
       includeCleanup: opts.cleanup !== false,
       json: Boolean(opts.json),
     });

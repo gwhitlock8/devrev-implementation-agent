@@ -4,13 +4,34 @@
  * Produces a Markdown file that an SE can follow to recreate the demo,
  * including exact Computer prompts, DevRev UI navigation steps, and
  * talking points for each phase.
+ *
+ * By default, uses Claude to generate a persona-aware, blueprint-tailored
+ * narrative. Falls back to a deterministic template when ANTHROPIC_API_KEY
+ * is not set or --no-ai is passed.
  */
 
+import Anthropic from "@anthropic-ai/sdk";
 import { writeFile } from "node:fs/promises";
 import { resolve, basename } from "node:path";
+import { stdin as input, stdout as output } from "node:process";
+import { createInterface } from "node:readline/promises";
 import { loadBlueprintFile, type Blueprint } from "../parsers/blueprint.js";
+import { loadEnvFiles, optionalEnv } from "../config/loadEnv.js";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
+
+export type DiscoveryAnswers = {
+  /** Key use cases the prospect wants to see */
+  useCases?: string;
+  /** Current tools/pain points */
+  currentStack?: string;
+  /** Key stakeholders and their roles */
+  stakeholders?: string;
+  /** Specific outcomes the prospect cares about */
+  desiredOutcomes?: string;
+  /** Any additional context from the SE */
+  additionalContext?: string;
+};
 
 export type NarrativeCliArgs = {
   blueprintPath: string;
@@ -18,7 +39,10 @@ export type NarrativeCliArgs = {
   title?: string;
   persona?: string;
   includeCleanup: boolean;
+  includeDiscovery: boolean;
   json: boolean;
+  /** Pre-supplied discovery answers (skip interactive prompts) */
+  discoveryAnswers?: DiscoveryAnswers;
 };
 
 export type NarrativeSection = {
@@ -34,121 +58,261 @@ export type NarrativeStep = {
   detail: string;
 };
 
+// ─── Discovery Flow ────────────────────────────────────────────────────────
+
+/** Generate discovery questions tailored to the blueprint scenario. */
+function generateDiscoveryQuestions(bp: Blueprint): string[] {
+  const integrations = (bp.integrations ?? []).map((i) =>
+    typeof i === "string" ? i : i.name,
+  );
+  const questions: string[] = [];
+
+  questions.push(
+    "What are the top 2-3 use cases or workflows the prospect wants to see in this demo?",
+  );
+
+  if (integrations.length > 0) {
+    questions.push(
+      `The prospect currently uses ${integrations.join(" + ")}. What are their biggest pain points with the current stack?`,
+    );
+  } else {
+    questions.push(
+      "What tools/systems is the prospect currently using, and what are their biggest pain points?",
+    );
+  }
+
+  questions.push(
+    "Who are the key stakeholders in the room and what do they each care about? (e.g., VP Engineering cares about velocity, Head of Support cares about CSAT)",
+  );
+
+  questions.push(
+    "What specific outcomes would make this demo a success for the prospect? (e.g., 'show me how a ticket traces to an engineering fix')",
+  );
+
+  return questions;
+}
+
+/** Run interactive discovery Q&A in the terminal. Returns answers or null if skipped. */
+async function runDiscoveryFlow(bp: Blueprint): Promise<DiscoveryAnswers | null> {
+  if (!process.stdin.isTTY) return null;
+
+  const rl = createInterface({ input, output });
+  try {
+    console.log("");
+    const include = (
+      await rl.question(
+        "Would you like to include use case information from a discovery session with the prospect? [y/N] ",
+      )
+    )
+      .trim()
+      .toLowerCase();
+
+    if (include !== "y" && include !== "yes") {
+      return null;
+    }
+
+    console.log(
+      "\n─── Discovery Questions ───────────────────────────────────────────────────",
+    );
+    console.log("Answer each question (or press Enter to skip).\n");
+
+    const questions = generateDiscoveryQuestions(bp);
+    const answerKeys: (keyof DiscoveryAnswers)[] = [
+      "useCases",
+      "currentStack",
+      "stakeholders",
+      "desiredOutcomes",
+    ];
+
+    const answers: DiscoveryAnswers = {};
+    for (let i = 0; i < questions.length; i++) {
+      console.log(`  ${i + 1}. ${questions[i]}`);
+      const ans = (await rl.question("     → ")).trim();
+      if (ans) {
+        answers[answerKeys[i]] = ans;
+      }
+      console.log("");
+    }
+
+    // Additional context catch-all
+    console.log(
+      "  5. Any additional context not captured above? (competitive intel, timeline pressures, prior demos, etc.)",
+    );
+    const additional = (await rl.question("     → ")).trim();
+    if (additional) {
+      answers.additionalContext = additional;
+    }
+
+    console.log(
+      "\n─────────────────────────────────────────────────────────────────────────────\n",
+    );
+    return Object.keys(answers).length > 0 ? answers : null;
+  } finally {
+    rl.close();
+  }
+}
+
 // ─── Narrative Generation ───────────────────────────────────────────────────
 
-function generatePreamble(bp: Blueprint, title: string, persona: string): string {
+function generateSetupFamiliarization(bp: Blueprint): string {
+  const parts = bp.parts ?? [];
+  const products = parts.filter((p) => p.type === "product");
+  const capabilities = parts.filter((p) => p.type === "capability");
+  const features = parts.filter((p) => p.type === "feature");
+  const accounts = bp.accounts ?? [];
+
+  let setup = `### Familiarize yourself with the demo org
+
+> Before presenting, click through these areas so you know the data is there.
+> You do NOT walk the prospect through this — it's your pre-flight check.
+
+`;
+
+  if (products.length > 0) {
+    setup += `**Product hierarchy** (Build → Parts):\n`;
+    setup += `- ${products.length} product(s): ${products.map((p) => p.name).join(", ")}\n`;
+    if (capabilities.length > 0) {
+      setup += `- ${capabilities.length} capabilities: ${capabilities.slice(0, 5).map((c) => c.name).join(", ")}${capabilities.length > 5 ? ", ..." : ""}\n`;
+    }
+    if (features.length > 0) {
+      setup += `- ${features.length} features: ${features.slice(0, 5).map((f) => f.name).join(", ")}${features.length > 5 ? ", ..." : ""}\n`;
+    }
+    setup += `- The hierarchy mirrors how the prospect's engineering thinks about ownership — product → capability → feature.\n`;
+    setup += `\n`;
+  }
+
+  if (accounts.length > 0) {
+    setup += `**Accounts** (Support → Customers):\n`;
+    setup += `- ${accounts.length} account(s): ${accounts.slice(0, 4).map((a) => a.display_name).join(", ")}${accounts.length > 4 ? ", ..." : ""}\n`;
+    setup += `- Each has domain auto-association — tickets from matching domains auto-link to the right account.\n`;
+    setup += `\n`;
+  }
+
+  return setup;
+}
+
+function generateDiscoverySection(answers: DiscoveryAnswers): string {
+  let section = `### Discovery context (from SE intake)\n\n`;
+
+  if (answers.useCases) {
+    section += `**Key use cases:** ${answers.useCases}\n\n`;
+  }
+  if (answers.currentStack) {
+    section += `**Current pain points:** ${answers.currentStack}\n\n`;
+  }
+  if (answers.stakeholders) {
+    section += `**Stakeholders in the room:** ${answers.stakeholders}\n\n`;
+  }
+  if (answers.desiredOutcomes) {
+    section += `**Success criteria:** ${answers.desiredOutcomes}\n\n`;
+  }
+  if (answers.additionalContext) {
+    section += `**Additional context:** ${answers.additionalContext}\n\n`;
+  }
+
+  return section;
+}
+
+function generatePreamble(
+  bp: Blueprint,
+  title: string,
+  persona: string,
+  blueprintFile: string,
+  discovery?: DiscoveryAnswers | null,
+): string {
   const name = bp.name ?? title;
   const desc = bp.description ?? "DevRev POC demo environment.";
+  const brief = bp.description ?? bp.name ?? "POC environment";
 
-  return `# ${name}
+  let preamble = `# ${name}
 
-> **Demo Runbook** — Click-by-click narrative for recreating this demo.
-> Generated by \`dia narrative\`. Follow each phase in order.
+> **Demo Runbook** — A guided narrative for delivering this DevRev demo.
+> Audience: prospect stakeholders. Presenter: ${persona}.
 
 **Persona:** ${persona}
-**Blueprint:** ${title}
+**Blueprint:** ${blueprintFile}
 **Description:** ${desc}
 
 ---
 
-## Prerequisites
+## Before the demo
 
-Before starting, ensure:
+> These are setup steps. Do NOT demo this part — it happens beforehand.
 
 - [ ] You have a DevRev org with Admin access
 - [ ] \`dia doctor\` passes all checks
 - [ ] Your \`.env\` file has valid \`DEVREV_PAT\` and \`ANTHROPIC_API_KEY\`
 ${bp.integrations?.length ? `- [ ] Integration credentials ready: ${bp.integrations.map((i) => typeof i === "string" ? i : i.name).join(", ")}` : ""}
+- [ ] Run \`dia apply -b ${blueprintFile}\` to stand up the demo org
+- [ ] Confirm the summary shows 0 failed steps (skipped items like duplicate groups/stages are fine)
+- [ ] Open DevRev in your browser, logged into the demo org
 
----
+To regenerate fresh from a prompt:
+
+\`\`\`
+dia start "${brief}" --yes
+\`\`\`
+
+${generateSetupFamiliarization(bp)}`;
+
+  if (discovery) {
+    preamble += generateDiscoverySection(discovery);
+  }
+
+  preamble += `---
 
 `;
+  return preamble;
 }
 
-function generateSetupPhase(bp: Blueprint, blueprintFile: string): NarrativeSection {
+/**
+ * DEPRECATED as a live demo phase — environment setup is now part of the
+ * "Before the demo" preamble section. The SE runs `dia apply` beforehand;
+ * the prospect never sees this step.
+ */
+function _generateSetupPhase(bp: Blueprint, blueprintFile: string): NarrativeSection {
   const steps: NarrativeStep[] = [];
-
-  // The one-shot prompt that creates the whole environment
   const brief = bp.description ?? bp.name ?? "POC environment";
   steps.push({
     action: "prompt",
-    target: "Computer (DevRev DM)",
-    detail: `Use Dia to stand up the demo environment. Paste this into Computer:\n\n\`\`\`\ndia start "${brief}" --yes\n\`\`\`\n\nOr if using the pre-built blueprint:\n\n\`\`\`\ndia apply -b ${blueprintFile}\n\`\`\``,
+    target: "Terminal",
+    detail: `\`\`\`\ndia apply -b ${blueprintFile}\n\`\`\``,
   });
-
-  steps.push({
-    action: "wait",
-    detail: "Wait for Dia to complete. You'll see per-step progress and a final summary.",
-  });
-
   steps.push({
     action: "verify",
     target: "Terminal output",
-    detail: "Confirm the summary shows 0 failed steps. Note any skipped items (usually duplicate groups or stages).",
+    detail: "Confirm 0 failed steps.",
   });
-
   return {
-    phase: "Phase 1",
-    title: "Environment Setup",
-    talking_points: [
-      "Dia creates the entire org structure from a single natural-language prompt",
-      "Everything is tracked in a manifest for clean teardown later",
-      "No manual clicking required for the initial setup",
-    ],
+    phase: "Setup",
+    title: "Environment Setup (pre-demo)",
+    talking_points: ["Run before the prospect arrives"],
     steps,
   };
 }
 
-function generatePartsPhase(bp: Blueprint): NarrativeSection | null {
+/**
+ * DEPRECATED as a live demo phase — product hierarchy is now shown in the
+ * "Familiarize yourself" pre-flight checklist. Retained for backward
+ * compatibility if callers want to include it as an optional appendix.
+ */
+function _generatePartsPhase(bp: Blueprint): NarrativeSection | null {
   const parts = bp.parts ?? [];
   if (parts.length === 0) return null;
-
-  const steps: NarrativeStep[] = [];
-
-  // Navigate to the product hierarchy
-  steps.push({
-    action: "click",
-    target: "DevRev sidebar → Build → Parts",
-    detail: "Open the parts explorer to see the product hierarchy Dia created.",
-  });
-
-  // Walk the hierarchy
   const products = parts.filter((p) => p.type === "product");
   const capabilities = parts.filter((p) => p.type === "capability");
   const features = parts.filter((p) => p.type === "feature");
 
-  if (products.length > 0) {
-    steps.push({
-      action: "verify",
-      target: "Parts list",
-      detail: `Confirm ${products.length} product(s) exist: ${products.map((p) => `**${p.name}**`).join(", ")}`,
-    });
-  }
-
-  if (capabilities.length > 0) {
-    steps.push({
-      action: "click",
-      target: `Product → ${products[0]?.name ?? "first product"}`,
-      detail: `Expand to see ${capabilities.length} capabilities: ${capabilities.map((c) => c.name).join(", ")}`,
-    });
-  }
-
-  if (features.length > 0) {
-    steps.push({
-      action: "note",
-      detail: `Features (${features.length}): ${features.map((f) => f.name).join(", ")}. Each maps to a specific capability in the hierarchy.`,
-    });
-  }
-
   return {
-    phase: "Phase 2",
-    title: "Product Hierarchy Tour",
+    phase: "Appendix",
+    title: "Product Hierarchy Reference",
     talking_points: [
-      "DevRev organizes work under a Product → Capability → Feature hierarchy",
-      "This maps cleanly to how engineering teams think about ownership",
-      `${products.length} product(s), ${capabilities.length} capability(ies), ${features.length} feature(s) created automatically`,
+      `${products.length} product(s), ${capabilities.length} capability(ies), ${features.length} feature(s)`,
     ],
-    steps,
+    steps: [{
+      action: "note",
+      detail: `Products: ${products.map((p) => p.name).join(", ")}. Capabilities: ${capabilities.map((c) => c.name).join(", ")}. Features: ${features.map((f) => f.name).join(", ")}.`,
+    }],
   };
 }
 
@@ -514,17 +678,20 @@ function renderSection(section: NarrativeSection): string {
 
 export function generateNarrative(
   bp: Blueprint,
-  options: { title: string; persona: string; blueprintFile: string; includeCleanup: boolean },
+  options: {
+    title: string;
+    persona: string;
+    blueprintFile: string;
+    includeCleanup: boolean;
+    discovery?: DiscoveryAnswers | null;
+  },
 ): string {
   const sections: NarrativeSection[] = [];
 
-  // Always start with setup
-  sections.push(generateSetupPhase(bp, options.blueprintFile));
+  // NOTE: Setup and product hierarchy are now in the "Before the demo" preamble.
+  // The live demo starts with the value story — work items, traceability, AI.
 
-  // Conditional phases based on blueprint content
-  const partsPhase = generatePartsPhase(bp);
-  if (partsPhase) sections.push(partsPhase);
-
+  // Conditional phases based on blueprint content (live demo starts here)
   const worksPhase = generateWorksPhase(bp);
   if (worksPhase) sections.push(worksPhase);
 
@@ -556,7 +723,7 @@ export function generateNarrative(
   }
 
   // Render to Markdown
-  let md = generatePreamble(bp, options.title, options.persona);
+  let md = generatePreamble(bp, options.title, options.persona, options.blueprintFile, options.discovery);
   for (const section of sections) {
     md += renderSection(section);
   }
@@ -586,19 +753,28 @@ export async function narrativeCommand(args: NarrativeCliArgs): Promise<void> {
   const persona = args.persona ?? "Sales Engineer";
   const blueprintFile = basename(blueprintPath);
 
+  // Optional discovery flow — ask SE for prospect context
+  let discovery: DiscoveryAnswers | null = null;
+  if (args.discoveryAnswers) {
+    discovery = args.discoveryAnswers;
+  } else if (args.includeDiscovery) {
+    discovery = await runDiscoveryFlow(bp);
+  }
+
   const markdown = generateNarrative(bp, {
     title,
     persona,
     blueprintFile,
     includeCleanup: args.includeCleanup,
+    discovery,
   });
 
   if (args.json) {
-    // Output as structured JSON for programmatic consumption
     const json = {
       title,
       persona,
       blueprint: blueprintFile,
+      discovery,
       markdown,
     };
     process.stdout.write(JSON.stringify(json, null, 2) + "\n");
@@ -609,7 +785,10 @@ export async function narrativeCommand(args: NarrativeCliArgs): Promise<void> {
     const outPath = resolve(args.outputPath);
     await writeFile(outPath, markdown, "utf8");
     console.log(`\n  ✓ Demo narrative written to: ${outPath}`);
-    console.log(`    ${markdown.split("\n").length} lines, ready to follow.\n`);
+    console.log(`    ${markdown.split("\n").length} lines, ready to deliver.\n`);
+    if (discovery) {
+      console.log(`    Discovery context included from SE intake.\n`);
+    }
   } else {
     process.stdout.write(markdown);
   }

@@ -287,16 +287,36 @@ Queries your internal DevRev org (via `DEVREV_RESEARCH_PAT`) and synthesizes a r
 ```bash
 dia narrative jira-migration.json -o demo-runbook.md
 dia narrative blueprint.json -t "Acme POC" --persona "Account Executive"
+dia narrative ai-first-showcase.json --discovery -o demo-runbook.md
 dia narrative ai-first-showcase.json --no-cleanup
 ```
 
-Generates a Markdown runbook that an SE can follow to recreate and deliver a demo. The narrative is tailored to the blueprint's content — it only includes phases for features that are actually present (articles, integrations, custom objects, PLuG, etc.).
+Generates a Markdown runbook that an SE can follow to deliver a demo to a prospect. The narrative is tailored to the blueprint's content — it only includes phases for features that are actually present (articles, integrations, custom objects, PLuG, etc.).
 
-Each phase includes:
+**Structure — setup vs. live demo:**
+
+The narrative separates *setup* from *presentation*:
+
+- **"Before the demo"** — includes `dia apply`, verification steps, and a **"Familiarize yourself"** pre-flight checklist (product hierarchy, accounts, displacement context). The SE confirms the data is there but does NOT walk the prospect through this.
+- **Live demo phases** — start with the value story (work items, traceability, AI, integrations). These are what the prospect sees.
+
+Each live phase includes:
 - **Talking points** — what to say to the prospect during this section
 - **Click-by-click steps** — exact UI navigation paths
 - **Computer prompts** — copy-paste prompts for Computer that work against the demo data
 - **Verification steps** — what to confirm before moving on
+
+**Optional discovery intake (`--discovery`):**
+
+When you pass `--discovery`, Dia asks whether you'd like to include use case information from a discovery session with the prospect. If you say yes, it asks tailored questions:
+
+1. Top use cases/workflows the prospect wants to see
+2. Biggest pain points with their current stack
+3. Key stakeholders and what they care about
+4. Specific outcomes that would make the demo a success
+5. Any additional context (competitive intel, timeline pressures, etc.)
+
+The answers are embedded in the narrative under "Discovery context (from SE intake)" — giving the SE a personalized reference during delivery.
 
 The narrative is also **auto-generated alongside every plan**. When you run `dia plan` or `dia start`, a `demo-narrative.md` file is written to the output directory automatically:
 
@@ -307,7 +327,7 @@ poc-output/
 └── demo-narrative.md    ← auto-generated runbook
 ```
 
-Flags: `-o <path>` (output file), `-t <title>`, `--persona <role>`, `--no-cleanup`, `--json`.
+Flags: `-o <path>` (output file), `-t <title>`, `--persona <role>`, `--discovery` (interactive intake), `--no-cleanup`, `--json`.
 
 ### `dia start` — one-shot pipeline
 
