@@ -1,22 +1,22 @@
 /**
  * `dia narrative` — Generate a click-by-click demo runbook from a blueprint.
  *
- * Produces a Markdown file that an SE can follow to recreate the demo,
- * including exact Computer prompts, DevRev UI navigation steps, and
- * talking points for each phase.
+ * Produces a Markdown file that an SE can follow to deliver a compelling
+ * DevRev demo. The narrative separates setup (pre-flight) from live
+ * presentation phases, and optionally includes discovery context from
+ * an SE intake session with the prospect.
  *
- * By default, uses Claude to generate a persona-aware, blueprint-tailored
- * narrative. Falls back to a deterministic template when ANTHROPIC_API_KEY
- * is not set or --no-ai is passed.
+ * Structure:
+ * - "Before the demo" — setup steps + familiarize yourself checklist
+ * - Live phases — work items, KB, integrations, AI, Computer prompts
+ * - Optional --discovery flag for interactive SE intake Q&A
  */
 
-import Anthropic from "@anthropic-ai/sdk";
 import { writeFile } from "node:fs/promises";
 import { resolve, basename } from "node:path";
 import { stdin as input, stdout as output } from "node:process";
 import { createInterface } from "node:readline/promises";
 import { loadBlueprintFile, type Blueprint } from "../parsers/blueprint.js";
-import { loadEnvFiles, optionalEnv } from "../config/loadEnv.js";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -263,57 +263,6 @@ ${generateSetupFamiliarization(bp)}`;
 
 `;
   return preamble;
-}
-
-/**
- * DEPRECATED as a live demo phase — environment setup is now part of the
- * "Before the demo" preamble section. The SE runs `dia apply` beforehand;
- * the prospect never sees this step.
- */
-function _generateSetupPhase(bp: Blueprint, blueprintFile: string): NarrativeSection {
-  const steps: NarrativeStep[] = [];
-  const brief = bp.description ?? bp.name ?? "POC environment";
-  steps.push({
-    action: "prompt",
-    target: "Terminal",
-    detail: `\`\`\`\ndia apply -b ${blueprintFile}\n\`\`\``,
-  });
-  steps.push({
-    action: "verify",
-    target: "Terminal output",
-    detail: "Confirm 0 failed steps.",
-  });
-  return {
-    phase: "Setup",
-    title: "Environment Setup (pre-demo)",
-    talking_points: ["Run before the prospect arrives"],
-    steps,
-  };
-}
-
-/**
- * DEPRECATED as a live demo phase — product hierarchy is now shown in the
- * "Familiarize yourself" pre-flight checklist. Retained for backward
- * compatibility if callers want to include it as an optional appendix.
- */
-function _generatePartsPhase(bp: Blueprint): NarrativeSection | null {
-  const parts = bp.parts ?? [];
-  if (parts.length === 0) return null;
-  const products = parts.filter((p) => p.type === "product");
-  const capabilities = parts.filter((p) => p.type === "capability");
-  const features = parts.filter((p) => p.type === "feature");
-
-  return {
-    phase: "Appendix",
-    title: "Product Hierarchy Reference",
-    talking_points: [
-      `${products.length} product(s), ${capabilities.length} capability(ies), ${features.length} feature(s)`,
-    ],
-    steps: [{
-      action: "note",
-      detail: `Products: ${products.map((p) => p.name).join(", ")}. Capabilities: ${capabilities.map((c) => c.name).join(", ")}. Features: ${features.map((f) => f.name).join(", ")}.`,
-    }],
-  };
 }
 
 function generateWorksPhase(bp: Blueprint): NarrativeSection | null {
