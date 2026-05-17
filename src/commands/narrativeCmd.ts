@@ -265,7 +265,7 @@ ${generateSetupFamiliarization(bp)}`;
   return preamble;
 }
 
-function generateWorksPhase(bp: Blueprint): NarrativeSection | null {
+function generateWorksPhase(bp: Blueprint, discovery?: DiscoveryAnswers | null): NarrativeSection | null {
   const works = bp.works ?? [];
   const tickets = works.filter((w) => w.type === "ticket");
   const issues = works.filter((w) => w.type === "issue");
@@ -274,13 +274,23 @@ function generateWorksPhase(bp: Blueprint): NarrativeSection | null {
 
   if (works.length === 0 && !hasCsv) return null;
 
+  // Detect if discovery emphasizes traceability
+  const wantsTraceability = discovery && (
+    /trac(e|ability|ing)/i.test(discovery.desiredOutcomes ?? "") ||
+    /trac(e|ability|ing)/i.test(discovery.useCases ?? "") ||
+    /ticket.*issue|issue.*ticket|engineering.*fix|support.*engineering/i.test(discovery.desiredOutcomes ?? "") ||
+    /connect.*engineering|connect.*support|link.*ticket/i.test(discovery.useCases ?? "")
+  );
+
   const steps: NarrativeStep[] = [];
 
   if (tickets.length > 0 || hasCsv) {
     steps.push({
       action: "click",
       target: "DevRev sidebar → Support → Tickets",
-      detail: "Open the ticket queue to see customer-facing work items.",
+      detail: wantsTraceability
+        ? "Open the ticket queue. Pick a ticket that's linked to an engineering issue — this is the traceability story."
+        : "Open the ticket queue to see customer-facing work items.",
     });
 
     steps.push({
@@ -290,11 +300,27 @@ function generateWorksPhase(bp: Blueprint): NarrativeSection | null {
     });
   }
 
+  // If traceability is the goal, add the linking demo step
+  if (wantsTraceability && (tickets.length > 0 || hasCsv) && issues.length > 0) {
+    steps.push({
+      action: "click",
+      target: "Ticket detail → Linked items",
+      detail: "Click into a ticket and show the linked engineering issue. This is the 'aha' moment — in their current stack, this connection requires manual copy-paste across tools. In DevRev, it's a native link with shared timeline.",
+    });
+
+    steps.push({
+      action: "note",
+      detail: `**Say this:** "When this engineering issue gets resolved, the customer who filed the ticket gets notified automatically. No one has to remember to close the loop."`,
+    });
+  }
+
   if (issues.length > 0) {
     steps.push({
       action: "click",
       target: "DevRev sidebar → Build → Issues",
-      detail: "Switch to the engineering issue tracker.",
+      detail: wantsTraceability
+        ? "Switch to the engineering view. Show how the same linked ticket appears from the engineer's perspective — full customer context without switching tools."
+        : "Switch to the engineering issue tracker.",
     });
 
     steps.push({
@@ -317,16 +343,34 @@ function generateWorksPhase(bp: Blueprint): NarrativeSection | null {
     });
   }
 
+  // Build talking points — customize based on discovery
+  const talkingPoints: string[] = [];
+
+  if (wantsTraceability) {
+    talkingPoints.push(
+      "This is the unified traceability story: a customer ticket links directly to the engineering issue fixing it — one continuous thread, no handoff gaps.",
+    );
+    if (discovery?.currentStack) {
+      talkingPoints.push(
+        `In your current stack (${discovery.currentStack.slice(0, 100)}), this requires manual cross-referencing. DevRev makes it a native link.`,
+      );
+    }
+    talkingPoints.push(
+      "When an engineer resolves an issue, every linked customer gets notified automatically. No 'hey, can you close that ticket?' follow-ups.",
+    );
+  } else {
+    talkingPoints.push("Tickets represent customer-facing requests; issues represent internal engineering work");
+    talkingPoints.push("Every work item is linked to a part in the hierarchy for automatic routing");
+  }
+
+  if (hasConversations) {
+    talkingPoints.push("Timeline shows realistic conversation threads — the org looks lived-in from day one");
+  }
+
   return {
-    phase: "Phase 3",
-    title: "Work Items Walkthrough",
-    talking_points: [
-      "Tickets represent customer-facing requests; issues represent internal engineering work",
-      "Every work item is linked to a part in the hierarchy for automatic routing",
-      ...(hasConversations
-        ? ["Timeline shows realistic conversation threads — the org looks lived-in from day one"]
-        : []),
-    ],
+    phase: "Phase 1",
+    title: wantsTraceability ? "End-to-End Traceability — Ticket to Code" : "Work Items Walkthrough",
+    talking_points: talkingPoints,
     steps,
   };
 }
@@ -492,12 +536,14 @@ function generateAIPhase(bp: Blueprint): NarrativeSection | null {
   };
 }
 
-function generateComputerPhase(bp: Blueprint): NarrativeSection {
+function generateComputerPhase(bp: Blueprint, discovery?: DiscoveryAnswers | null): NarrativeSection {
   const steps: NarrativeStep[] = [];
 
   steps.push({
     action: "note",
-    detail: "These are example prompts you can paste into Computer (DevRev's AI teammate) to demonstrate its capabilities against the POC data.",
+    detail: discovery
+      ? "These prompts are tailored to the prospect's use cases. Paste them into Computer to demonstrate how DevRev answers their specific questions."
+      : "These are example prompts you can paste into Computer (DevRev's AI teammate) to demonstrate its capabilities against the POC data.",
   });
 
   // Generate contextual prompts based on what's in the blueprint
@@ -505,6 +551,63 @@ function generateComputerPhase(bp: Blueprint): NarrativeSection {
   const works = bp.works ?? [];
   const products = parts.filter((p) => p.type === "product");
 
+  // --- Discovery-driven prompts (prospect-specific) ---
+  if (discovery) {
+    // Traceability / linking prompts
+    if (/trac(e|ability|ing)|ticket.*issue|engineering.*fix|connect.*engineering|link/i.test(
+      `${discovery.useCases ?? ""} ${discovery.desiredOutcomes ?? ""}`,
+    )) {
+      steps.push({
+        action: "prompt",
+        target: "Computer DM",
+        detail: `\`\`\`\nWhich engineering issues are linked to customer tickets? Show me the issues with the most linked tickets.\n\`\`\`\n\n**Why this lands:** This query is only possible in a unified platform. It directly addresses their need to connect engineering work with support.`,
+      });
+
+      steps.push({
+        action: "prompt",
+        target: "Computer DM",
+        detail: `\`\`\`\nWhat percentage of open engineering issues originated from customer-reported tickets? Break it down by capability.\n\`\`\`\n\n**Why this lands:** Directly answers their reporting use case — customer impact on engineering work.`,
+      });
+    }
+
+    // Visibility / cross-tool prompts
+    if (/visib|no.*see|can't.*see|across.*tool|cross.*system/i.test(
+      `${discovery.currentStack ?? ""} ${discovery.useCases ?? ""}`,
+    )) {
+      steps.push({
+        action: "prompt",
+        target: "Computer DM",
+        detail: `\`\`\`\nGive me a unified view: for each open engineering issue, show any linked customer tickets, which accounts are affected, and the current priority.\n\`\`\`\n\n**Why this lands:** This is the cross-tool visibility they can't get today.`,
+      });
+    }
+
+    // Stakeholder-specific prompts
+    if (discovery.stakeholders) {
+      if (/velocity|speed|cycle.*time|ship/i.test(discovery.stakeholders)) {
+        steps.push({
+          action: "prompt",
+          target: "Computer DM",
+          detail: `\`\`\`\nWhat's our average time from issue creation to resolution? Which capability areas are fastest vs. slowest?\n\`\`\`\n\n**Why this lands:** VP Engineering cares about velocity — show them the data without building a dashboard.`,
+        });
+      }
+      if (/customer.*impact|product.*decision|meaningful/i.test(discovery.stakeholders)) {
+        steps.push({
+          action: "prompt",
+          target: "Computer DM",
+          detail: `\`\`\`\nWhich features have the most customer-reported issues? Rank by number of affected accounts.\n\`\`\`\n\n**Why this lands:** Shows how engineering priorities can be driven by customer impact data — meaningful product decisions backed by real signals.`,
+        });
+      }
+      if (/CSAT|satisfaction|support.*lead|support.*head/i.test(discovery.stakeholders)) {
+        steps.push({
+          action: "prompt",
+          target: "Computer DM",
+          detail: `\`\`\`\nWhich tickets have been open longest without engineering action? Flag any that might impact customer satisfaction.\n\`\`\`\n\n**Why this lands:** Head of Support cares about tickets that are stuck — this surfaces them instantly.`,
+        });
+      }
+    }
+  }
+
+  // --- Standard prompts (always include a baseline) ---
   if (products.length > 0) {
     steps.push({
       action: "prompt",
@@ -513,7 +616,7 @@ function generateComputerPhase(bp: Blueprint): NarrativeSection {
     });
   }
 
-  if (works.some((w) => w.type === "ticket")) {
+  if (!discovery && works.some((w) => w.type === "ticket")) {
     steps.push({
       action: "prompt",
       target: "Computer DM",
@@ -521,7 +624,7 @@ function generateComputerPhase(bp: Blueprint): NarrativeSection {
     });
   }
 
-  if (works.some((w) => w.type === "issue")) {
+  if (!discovery && works.some((w) => w.type === "issue")) {
     steps.push({
       action: "prompt",
       target: "Computer DM",
@@ -537,14 +640,6 @@ function generateComputerPhase(bp: Blueprint): NarrativeSection {
     });
   }
 
-  if (bp.articles?.length) {
-    steps.push({
-      action: "prompt",
-      target: "Computer DM",
-      detail: `\`\`\`\nWhat KB articles do we have? Which parts of the product do they cover?\n\`\`\``,
-    });
-  }
-
   // Always include a meta-question
   steps.push({
     action: "prompt",
@@ -552,14 +647,25 @@ function generateComputerPhase(bp: Blueprint): NarrativeSection {
     detail: `\`\`\`\nSummarize the current state of our org — how many open tickets, issues by priority, and any patterns you see.\n\`\`\``,
   });
 
+  // Build talking points
+  const talkingPoints: string[] = [];
+  if (discovery?.desiredOutcomes) {
+    talkingPoints.push(
+      `These prompts are designed to demonstrate: "${discovery.desiredOutcomes}"`,
+    );
+  }
+  talkingPoints.push("Computer can query across all DevRev objects — tickets, issues, accounts, articles");
+  talkingPoints.push("It understands the product hierarchy and can group/filter intelligently");
+  if (discovery) {
+    talkingPoints.push("No dashboards to build, no SQL to write — just ask the question the prospect would ask");
+  } else {
+    talkingPoints.push("These prompts work against the demo data we just created");
+  }
+
   return {
     phase: "Phase 8",
-    title: "Computer AI Prompts",
-    talking_points: [
-      "Computer can query across all DevRev objects — tickets, issues, accounts, articles",
-      "It understands the product hierarchy and can group/filter intelligently",
-      "These prompts work against the demo data we just created",
-    ],
+    title: discovery ? "Computer AI — Prospect-Specific Prompts" : "Computer AI Prompts",
+    talking_points: talkingPoints,
     steps,
   };
 }
@@ -640,8 +746,10 @@ export function generateNarrative(
   // NOTE: Setup and product hierarchy are now in the "Before the demo" preamble.
   // The live demo starts with the value story — work items, traceability, AI.
 
+  const discovery = options.discovery;
+
   // Conditional phases based on blueprint content (live demo starts here)
-  const worksPhase = generateWorksPhase(bp);
+  const worksPhase = generateWorksPhase(bp, discovery);
   if (worksPhase) sections.push(worksPhase);
 
   const articlesPhase = generateArticlesPhase(bp);
@@ -656,8 +764,8 @@ export function generateNarrative(
   const aiPhase = generateAIPhase(bp);
   if (aiPhase) sections.push(aiPhase);
 
-  // Always include Computer prompts
-  sections.push(generateComputerPhase(bp));
+  // Always include Computer prompts — discovery-aware
+  sections.push(generateComputerPhase(bp, discovery));
 
   // Renumber phases based on what's actually present
   sections.forEach((s, i) => {
