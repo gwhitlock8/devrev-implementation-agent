@@ -19,6 +19,7 @@ export const PlanStepKindSchema = z.enum([
   "create_tag",
   "create_custom_stage",
   "create_group",
+  "create_vista",
   "list_sprints",
   "noop",
 ]);

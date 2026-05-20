@@ -813,6 +813,63 @@ async function executeOneStep(params: {
     return "ok";
   }
 
+  if (step.kind === "create_vista") {
+    const body = resolveDeep({ ...(payload.body as Record<string, unknown>) }, ctx) as Record<
+      string,
+      unknown
+    >;
+    const ref = payload.manifest_ref as string | undefined;
+    const vistaName = typeof body.name === "string" ? body.name : undefined;
+
+    try {
+      const resp = await client.post("vistas.create", body);
+      const vistaResult = (resp as Record<string, unknown>).vista as
+        | { id?: string; display_id?: string }
+        | undefined;
+      if (ref && vistaResult?.id) {
+        ctx.manifest.refs[ref] = { id: vistaResult.id, display_id: vistaResult.display_id };
+      }
+      await audit.log({
+        ts: new Date().toISOString(),
+        step_id: step.id,
+        phase: "execute",
+        operation: "vistas.create",
+        rationale: step.rationale,
+        status: "ok",
+        request: AuditLogger.snapshot(body),
+        response_summary: AuditLogger.snapshot(vistaResult ?? {}),
+      });
+      return "ok";
+    } catch (e) {
+      if (e instanceof DevRevHttpError && (e.status === 409 || e.status === 400) && vistaName) {
+        const listResp = await client.post("vistas.list", {}) as { vistas?: { id?: string; display_id?: string; name?: string }[] };
+        const existing = (listResp.vistas ?? []).find(
+          (v) => v.name?.toLowerCase() === vistaName.toLowerCase(),
+        );
+        if (existing?.id) {
+          if (ref) {
+            ctx.manifest.refs[ref] = { id: existing.id, display_id: existing.display_id };
+          }
+          await audit.log({
+            ts: new Date().toISOString(),
+            step_id: step.id,
+            phase: "execute",
+            operation: "vistas.create",
+            rationale: step.rationale,
+            status: "ok",
+            request: AuditLogger.snapshot(body),
+            response_summary: AuditLogger.snapshot({
+              note: "reused_existing_vista_with_same_name",
+              vista: existing,
+            }),
+          });
+          return "ok";
+        }
+      }
+      throw e;
+    }
+  }
+
   if (step.kind === "create_timeline_entry") {
     const bodyRaw = { ...(payload.body as Record<string, unknown>) };
     // The DevRev API expects `object` to be a string id. resolveDeep turns

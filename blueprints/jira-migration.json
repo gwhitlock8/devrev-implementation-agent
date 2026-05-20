@@ -34,6 +34,58 @@
     { "ref": "grp:frontend-team", "name": "Frontend Team", "description": "Maps to Jira project role: Developers (frontend)" },
     { "ref": "grp:qa", "name": "QA Team", "description": "Maps to Jira project role: QA" }
   ],
+  "accounts": [
+    { "ref": "acc:acme", "display_name": "Acme Corp", "domains": ["acme.io"] },
+    { "ref": "acc:globex", "display_name": "Globex Industries", "domains": ["globex.com"] },
+    { "ref": "acc:initech", "display_name": "Initech Solutions", "domains": ["initech.dev"] }
+  ],
+  "rev_users": [
+    { "ref": "ru:sarah", "display_name": "Sarah Chen", "email": "sarah.chen@acme.io", "account_ref": "acc:acme" },
+    { "ref": "ru:marcus", "display_name": "Marcus Johnson", "email": "marcus.j@acme.io", "account_ref": "acc:acme" },
+    { "ref": "ru:priya", "display_name": "Priya Patel", "email": "priya@globex.com", "account_ref": "acc:globex" },
+    { "ref": "ru:alex", "display_name": "Alex Rivera", "email": "alex.rivera@globex.com", "account_ref": "acc:globex" },
+    { "ref": "ru:jamie", "display_name": "Jamie Okonkwo", "email": "jamie.o@initech.dev", "account_ref": "acc:initech" },
+    { "ref": "ru:taylor", "display_name": "Taylor Kim", "email": "taylor.kim@initech.dev", "account_ref": "acc:initech" }
+  ],
+  "vistas": [
+    { "ref": "vista:all-issues", "name": "All Engineering Issues", "type": "dynamic", "filter_type": "works", "filter": {"type": ["issue"]} },
+    { "ref": "vista:all-tickets", "name": "Support Tickets", "type": "dynamic", "filter_type": "works", "filter": {"type": ["ticket"]} },
+    { "ref": "vista:open-issues", "name": "Open Issues", "type": "dynamic", "filter_type": "works", "filter": {"type": ["issue"], "stage": {"name": ["open"]}} }
+  ],
+  "dashboards": [
+    {
+      "name": "Engineering Health",
+      "description": "Overview for VP Engineering — ties engineering work to customer impact",
+      "widgets": [
+        { "title": "Open Issues by Priority", "type": "bar_chart", "description": "Group by priority_v2" },
+        { "title": "Issues by Capability", "type": "pie_chart", "description": "Group by applies_to_part (capability level)" },
+        { "title": "Issue Resolution Trend", "type": "line_chart", "description": "Closed issues per week, last 30 days" },
+        { "title": "Customer-Linked Issues", "type": "count", "description": "Issues with at least one linked ticket" }
+      ]
+    },
+    {
+      "name": "Support ↔ Engineering",
+      "description": "Traceability view — shows how tickets drive engineering work",
+      "widgets": [
+        { "title": "Tickets Linked to Issues", "type": "count", "description": "Tickets with is_dependent_on link to an issue" },
+        { "title": "Top Features by Ticket Volume", "type": "bar_chart", "description": "Features ranked by number of linked tickets" },
+        { "title": "Mean Time to Link", "type": "metric", "description": "Average time between ticket creation and first issue link" }
+      ]
+    }
+  ],
+  "works": [
+    { "ref": "tkt:api-timeout", "type": "ticket", "title": "API requests timing out on /v1/query", "body": "Our team is seeing 504s on the query endpoint during peak hours. Started yesterday afternoon.", "applies_to_part_ref": "feat:api", "priority": "p0" },
+    { "ref": "tkt:auth-sso", "type": "ticket", "title": "SSO login fails after password rotation", "body": "After our quarterly password rotation, SSO users can't authenticate. Affects all Globex users.", "applies_to_part_ref": "feat:auth", "priority": "p1" },
+    { "ref": "tkt:dashboard-slow", "type": "ticket", "title": "Dashboard takes 30s to load with large datasets", "body": "When we have more than 10K rows in a report, the dashboard becomes unusable. Need optimization.", "applies_to_part_ref": "feat:dashboard", "priority": "p2" },
+    { "ref": "tkt:alerts-missing", "type": "ticket", "title": "Monitoring alerts not firing for disk usage", "body": "We hit 95% disk usage last night but got no alert. The threshold is set at 80%.", "applies_to_part_ref": "feat:monitoring", "priority": "p0" },
+    { "ref": "tkt:ci-flaky", "type": "ticket", "title": "CI pipeline intermittently fails on integration tests", "body": "About 1 in 5 runs fail with a timeout on the database seeding step. Blocking our release.", "applies_to_part_ref": "feat:pipelines", "priority": "p1" },
+    { "ref": "tkt:api-rate-limit", "type": "ticket", "title": "Rate limiting kicks in too aggressively", "body": "We're getting 429s at only 50 req/s. Our contract says 200 req/s.", "applies_to_part_ref": "feat:api", "priority": "p2" }
+  ],
+  "links": [
+    { "source_ref": "tkt:api-timeout", "target_ref": "csv:iss:3", "link_type": "is_dependent_on", "rationale": "Ticket traces to p99 latency fix" },
+    { "source_ref": "tkt:ci-flaky", "target_ref": "csv:iss:1", "link_type": "is_dependent_on", "rationale": "CI flakiness tracked by Linux runner stabilization issue" },
+    { "source_ref": "tkt:alerts-missing", "target_ref": "csv:iss:7", "link_type": "is_dependent_on", "rationale": "Alert gap traced to structured logging issue in worker pool" }
+  ],
   "csv": [
     {
       "generator": "faker",

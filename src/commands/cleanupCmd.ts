@@ -23,6 +23,7 @@ type ObjectCategory =
   | "link"
   | "work"
   | "article"
+  | "vista"
   | "tag"
   | "custom_stage"
   | "group"
@@ -36,6 +37,7 @@ const DON_SEGMENT_MAP: [RegExp, ObjectCategory][] = [
   [/\blink\//, "link"],
   [/\b(ticket|issue|task|opportunity)\//, "work"],
   [/\barticle\//, "article"],
+  [/\bvista\//, "vista"],
   [/\btag\//, "tag"],
   [/\bcustom_stage\//, "custom_stage"],
   [/\bgroup\//, "group"],
@@ -57,6 +59,7 @@ const DELETE_ENDPOINT: Record<ObjectCategory, string> = {
   link: "links.delete",
   work: "works.delete",
   article: "articles.delete",
+  vista: "vistas.delete",
   tag: "tags.delete",
   custom_stage: "stages.custom.delete",
   group: "groups.delete",
@@ -74,6 +77,7 @@ const CATEGORY_ORDER: ObjectCategory[] = [
   "link",
   "work",
   "article",
+  "vista",
   "tag",
   "custom_stage",
   "group",
@@ -123,6 +127,7 @@ const CATEGORY_LABELS: Record<ObjectCategory, string> = {
   link: "Links",
   work: "Works",
   article: "Articles",
+  vista: "Vistas",
   tag: "Tags",
   custom_stage: "Custom stages",
   group: "Groups",

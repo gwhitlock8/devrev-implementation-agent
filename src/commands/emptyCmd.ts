@@ -22,6 +22,7 @@ type DiscoveredObject = {
 const CATEGORY_LABELS: Record<string, string> = {
   work: "Works",
   article: "Articles",
+  vista: "Vistas",
   tag: "Tags",
   group: "Groups",
   rev_user: "Rev users",
@@ -77,6 +78,18 @@ async function discoverObjects(client: DevRevHttpClient): Promise<DiscoveredObje
       id: a.id as string,
       displayId: (a.display_id as string) ?? undefined,
       category: "article",
+    });
+  }
+
+  // Vistas (saved views)
+  const vistas = await listAllPaginated<Record<string, unknown>>(
+    client, "vistas.list", "vistas",
+  );
+  for (const v of vistas) {
+    objects.push({
+      id: v.id as string,
+      displayId: (v.display_id as string) ?? undefined,
+      category: "vista",
     });
   }
 
@@ -169,6 +182,7 @@ function partTypeRank(id: string): number {
 const DELETE_CONFIG: Record<string, { endpoint: string; internal?: boolean }> = {
   work: { endpoint: "works.delete" },
   article: { endpoint: "articles.delete" },
+  vista: { endpoint: "vistas.delete" },
   tag: { endpoint: "tags.delete" },
   group: { endpoint: "groups.delete", internal: true },
   rev_user: { endpoint: "rev-users.delete" },
@@ -178,7 +192,7 @@ const DELETE_CONFIG: Record<string, { endpoint: string; internal?: boolean }> = 
 };
 
 // Deletion order — dependents first.
-const DELETE_ORDER = ["work", "article", "tag", "group", "rev_user", "rev_org", "account", "part"];
+const DELETE_ORDER = ["work", "article", "vista", "tag", "group", "rev_user", "rev_org", "account", "part"];
 
 type EmptySummary = {
   deleted: number;

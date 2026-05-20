@@ -178,7 +178,7 @@ dia cleanup -o ./my-migration --keep-parts # keep the product hierarchy, delete 
 dia cleanup --dry-run                      # preview what would be deleted
 ```
 
-Dia reads the manifest from a prior apply and deletes objects in reverse dependency order: timeline entries, links, works, articles, tags, custom stages, groups, rev_orgs, accounts, and finally parts (leaf-first). The output includes a per-category breakdown:
+Dia reads the manifest from a prior apply and deletes objects in reverse dependency order: timeline entries, links, works, articles, vistas, tags, custom stages, groups, rev_orgs, accounts, and finally parts (leaf-first). The output includes a per-category breakdown:
 
 ```
   Org: my-org (DEV-XXXXXXXXX) — Jane Smith <jane@example.com>
@@ -214,7 +214,7 @@ dia empty --dry-run    # preview only
 dia empty --json       # machine-readable output
 ```
 
-Unlike `cleanup` (which reads a manifest), `empty` discovers all user-created objects in the org via list endpoints and deletes everything. Useful for resetting a demo org to a clean slate regardless of how the objects were created.
+Unlike `cleanup` (which reads a manifest), `empty` discovers all user-created objects in the org via list endpoints and deletes everything — including vistas. Useful for resetting a demo org to a clean slate regardless of how the objects were created.
 
 ```
   Org: my-org (DEV-XXXXXXXXX) — Jane Smith <jane@example.com>
@@ -411,6 +411,7 @@ A blueprint is a JSON file describing what Dia should create. She generates thes
 | `tags[]` | `tags.create` | Categorization tags for tickets, issues, and articles |
 | `custom_stages[]` | `stages.custom.create` | Custom ticket/issue lifecycle stages |
 | `groups[]` | `groups.create` | Support teams and routing groups |
+| `vistas[]` | `vistas.create` | Saved filtered views (e.g., "All Issues", "Open Tickets") |
 | `custom_objects[]` | `schemas.custom.set` + `custom-objects.create` | Custom object schemas + bulk record loading |
 
 ### What Dia generates as UI guidance
@@ -423,6 +424,7 @@ These features aren't API-automatable — Dia produces detailed, step-by-step se
 | `email_channels[]` | Inbound email setup with keyword routing and sender configuration |
 | `plug_config` | PLuG chat widget deployment with AI agent grounding |
 | `integrations[]` | Per-integration playbooks (Slack, Jira, Salesforce, Freshdesk, Zendesk, HubSpot, WhatsApp, Feature Request Handler) |
+| `dashboards[]` | Custom dashboard setup instructions (widget specs, data sources, DevRevU training link) |
 | `ui_guidance[]` | Free-form steps for anything the templates don't cover |
 
 ### Hierarchy rules
@@ -478,7 +480,7 @@ Pre-built starting points for the dominant displacement scenarios and showcase u
 
 - **[`blueprints/zendesk-migration.json`](blueprints/zendesk-migration.json)** — Adapted for Zendesk customers: Brand-to-Part mapping, Help Center article import, Zendesk Airsync steps. Validated 74/74.
 
-- **[`blueprints/jira-migration.json`](blueprints/jira-migration.json)** — Engineering-focused migration: Jira Project→Product, Component→Capability, Epic→Feature mapping. Includes custom stages mirroring a Kanban workflow (Backlog → Selected → In Progress → In Review → Done), tags for Jira issue types (bug, story, task, epic), team groups, 20 seeded issues, Jira Airsync playbook, and CSV import guidance. Validated 50/50.
+- **[`blueprints/jira-migration.json`](blueprints/jira-migration.json)** — Engineering-focused migration: Jira Project→Product, Component→Capability, Epic→Feature mapping. Includes custom stages mirroring a Kanban workflow, tags for Jira issue types (bug, story, task, epic), team groups, 3 customer accounts with 6 contacts, 6 customer-reported tickets linked to engineering issues (traceability demo), 20 seeded issues, 3 saved vistas (All Issues, Support Tickets, Open Issues), 2 dashboard specs (Engineering Health, Support ↔ Engineering), Jira Airsync playbook, and CSV import guidance.
 
 - **[`blueprints/hubspot-migration.json`](blueprints/hubspot-migration.json)** — CRM-to-support migration: HubSpot Companies→Accounts, Contacts→Rev Users, Deals/Opportunities linkage. Includes tiered SLA policies (enterprise/growth/starter), three sample accounts with seeded rev users, realistic B2B support tickets, KB articles, custom stages (Pending Customer, Escalated, Pending Engineering), and a full HubSpot AirSync parallel-run + cutover playbook. Validated 139/139.
 

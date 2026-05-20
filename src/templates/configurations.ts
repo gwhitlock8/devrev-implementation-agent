@@ -191,6 +191,47 @@ export function plugGuidance(cfg: PlugConfigInput): UiGuidanceSection {
   };
 }
 
+// ---------------- Dashboards (Insights) ----------------
+
+export type DashboardWidgetInput = {
+  title: string;
+  type: "count" | "bar_chart" | "line_chart" | "pie_chart" | "table" | "metric";
+  description?: string;
+};
+
+export type DashboardInput = {
+  name: string;
+  description?: string;
+  widgets: DashboardWidgetInput[];
+};
+
+export function dashboardsGuidance(dashboards: DashboardInput[]): UiGuidanceSection {
+  const steps: string[] = [
+    "Open the dashboard builder at https://app.devrev.ai/{your-org-slug}/dashboard-preview",
+    "You need dashboard create permissions and dataset read permissions to proceed.",
+    "Dashboards are composed of: Tabs (pages) → Sections (groupings) → Widgets (visualizations).",
+    "Each widget uses a data source (dataset) + SQL query with dimensions and measures.",
+    "Create each dashboard below as a separate custom dashboard:",
+  ];
+  for (const d of dashboards) {
+    steps.push("");
+    steps.push(`Dashboard: "${d.name}"${d.description ? ` — ${d.description}` : ""}`);
+    steps.push(`  Create a single tab with one section containing these widgets:`);
+    for (const w of d.widgets) {
+      const typeLabel = w.type.replace(/_/g, " ");
+      steps.push(`  - ${typeLabel} widget: "${w.title}"${w.description ? ` (${w.description})` : ""}`);
+    }
+  }
+  steps.push("");
+  steps.push("Training: DevRevU course 'Building Dashboards with DevRev' — https://devrevu.reach360.com/learn/course/06564690-0f64-451b-9855-32c757be5106");
+  steps.push("Tip: Pin the most impactful dashboard to the sidebar so it's one click during the demo.");
+  return {
+    title: "Create custom dashboards",
+    doc_links: ["https://devrevu.reach360.com/learn/course/06564690-0f64-451b-9855-32c757be5106"],
+    steps,
+  };
+}
+
 // ---------------- Integrations ----------------
 
 export type IntegrationKey =

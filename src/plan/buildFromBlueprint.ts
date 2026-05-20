@@ -18,6 +18,7 @@ import { generateRows, rowsToCsv } from "../data/index.js";
 import { generateConversations } from "../data/generators/conversations.js";
 import { getScenario } from "../data/scenarios/index.js";
 import {
+  dashboardsGuidance,
   emailChannelsGuidance,
   integrationsGuidance,
   plugGuidance,
@@ -460,6 +461,26 @@ export async function buildPlanFromBlueprint(
     );
   }
 
+  // Vistas (saved views)
+  for (const v of blueprint.vistas ?? []) {
+    steps.push(
+      step(nextId("vista"), {
+        kind: "create_vista",
+        title: `Create vista: ${v.name}`,
+        rationale: v.ref ? `Blueprint vista ref=${v.ref}` : "Blueprint vista",
+        payload: {
+          manifest_ref: v.ref,
+          body: {
+            name: v.name,
+            type: v.type ?? "dynamic",
+            filter_type: v.filter_type ?? "works",
+            filter: v.filter,
+          },
+        },
+      }),
+    );
+  }
+
   for (const link of blueprint.links ?? []) {
     steps.push(
       step(nextId("link"), {
@@ -664,7 +685,8 @@ export async function buildPlanFromBlueprint(
     blueprint.sla_policies?.length ||
       blueprint.email_channels?.length ||
       blueprint.plug_config ||
-      blueprint.integrations?.length,
+      blueprint.integrations?.length ||
+      blueprint.dashboards?.length,
   );
   if (hasC2Primitive) {
     uiSections.unshift(prerequisitesGuidance());
@@ -680,6 +702,9 @@ export async function buildPlanFromBlueprint(
   }
   if (blueprint.integrations?.length) {
     uiSections.push(...integrationsGuidance(blueprint.integrations));
+  }
+  if (blueprint.dashboards?.length) {
+    uiSections.push(dashboardsGuidance(blueprint.dashboards));
   }
 
   const plan: Plan = {

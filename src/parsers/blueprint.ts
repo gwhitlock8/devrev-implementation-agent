@@ -205,6 +205,26 @@ const GroupBlueprintSchema = z.object({
   members: z.array(z.string()).optional(),
 });
 
+const DashboardWidgetBlueprintSchema = z.object({
+  title: z.string(),
+  type: z.enum(["count", "bar_chart", "line_chart", "pie_chart", "table", "metric"]),
+  description: z.string().optional(),
+});
+
+const DashboardBlueprintSchema = z.object({
+  name: z.string(),
+  description: z.string().optional(),
+  widgets: z.array(DashboardWidgetBlueprintSchema),
+});
+
+const VistaBlueprintSchema = z.object({
+  ref: z.string().optional(),
+  name: z.string(),
+  type: z.enum(["curated", "dynamic", "grouped"]).default("dynamic"),
+  filter_type: z.string().default("works"),
+  filter: z.record(z.unknown()),
+});
+
 const INTEGRATION_KEYS = [
   "slack",
   "jira",
@@ -255,6 +275,8 @@ export const BlueprintSchema = z.object({
   tags: z.array(TagBlueprintSchema).optional(),
   custom_stages: z.array(CustomStageBlueprintSchema).optional(),
   groups: z.array(GroupBlueprintSchema).optional(),
+  vistas: z.array(VistaBlueprintSchema).optional(),
+  dashboards: z.array(DashboardBlueprintSchema).optional(),
   csv: z.array(CsvBindingSchema).optional(),
   ui_guidance: z
     .array(
