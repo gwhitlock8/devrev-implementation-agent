@@ -202,31 +202,45 @@ export type DashboardWidgetInput = {
 export type DashboardInput = {
   name: string;
   description?: string;
+  /** Optional explicit prompt for Computer. If omitted, one is auto-generated from widgets. */
+  prompt?: string;
   widgets: DashboardWidgetInput[];
 };
 
+/**
+ * Generate Computer DM prompts for dashboard creation instead of manual UI steps.
+ * The SE pastes these into Computer before (or during) the demo.
+ */
 export function dashboardsGuidance(dashboards: DashboardInput[]): UiGuidanceSection {
   const steps: string[] = [
-    "Open the dashboard builder at https://app.devrev.ai/{your-org-slug}/dashboard-preview",
-    "You need dashboard create permissions and dataset read permissions to proceed.",
-    "Dashboards are composed of: Tabs (pages) → Sections (groupings) → Widgets (visualizations).",
-    "Each widget uses a data source (dataset) + SQL query with dimensions and measures.",
-    "Create each dashboard below as a separate custom dashboard:",
+    "Create each dashboard below by pasting the prompt into a Computer DM.",
+    "Computer will build the dashboard programmatically — no manual UI work needed.",
+    "Do this BEFORE the demo so dashboards are ready when you present.",
+    "",
   ];
   for (const d of dashboards) {
-    steps.push("");
     steps.push(`Dashboard: "${d.name}"${d.description ? ` — ${d.description}` : ""}`);
-    steps.push(`  Create a single tab with one section containing these widgets:`);
-    for (const w of d.widgets) {
-      const typeLabel = w.type.replace(/_/g, " ");
-      steps.push(`  - ${typeLabel} widget: "${w.title}"${w.description ? ` (${w.description})` : ""}`);
+    steps.push("");
+    if (d.prompt) {
+      steps.push(`  Prompt for Computer:`);
+      steps.push(`  >>> ${d.prompt}`);
+    } else {
+      // Auto-generate a prompt from the widget specs
+      const widgetDescriptions = d.widgets
+        .map((w) => {
+          const typeLabel = w.type.replace(/_/g, " ");
+          return `a ${typeLabel} showing "${w.title}"${w.description ? ` (${w.description})` : ""}`;
+        })
+        .join(", ");
+      const prompt = `Create a dashboard called "${d.name}" with these widgets: ${widgetDescriptions}.`;
+      steps.push(`  Prompt for Computer:`);
+      steps.push(`  >>> ${prompt}`);
     }
+    steps.push("");
   }
-  steps.push("");
-  steps.push("Training: DevRevU course 'Building Dashboards with DevRev' — https://devrevu.reach360.com/learn/course/06564690-0f64-451b-9855-32c757be5106");
-  steps.push("Tip: Pin the most impactful dashboard to the sidebar so it's one click during the demo.");
+  steps.push("After creation, pin the most impactful dashboard to the sidebar for one-click access during the demo.");
   return {
-    title: "Create custom dashboards",
+    title: "Create dashboards via Computer",
     doc_links: ["https://devrevu.reach360.com/learn/course/06564690-0f64-451b-9855-32c757be5106"],
     steps,
   };

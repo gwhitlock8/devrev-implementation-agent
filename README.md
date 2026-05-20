@@ -424,7 +424,7 @@ These features aren't API-automatable — Dia produces detailed, step-by-step se
 | `email_channels[]` | Inbound email setup with keyword routing and sender configuration |
 | `plug_config` | PLuG chat widget deployment with AI agent grounding |
 | `integrations[]` | Per-integration playbooks (Slack, Jira, Salesforce, Freshdesk, Zendesk, HubSpot, WhatsApp, Feature Request Handler) |
-| `dashboards[]` | Custom dashboard setup instructions (widget specs, data sources, DevRevU training link) |
+| `dashboards[]` | Computer DM prompts that create dashboards programmatically (auto-generated from widget specs or explicit `prompt` field) |
 | `ui_guidance[]` | Free-form steps for anything the templates don't cover |
 
 ### Hierarchy rules

@@ -214,6 +214,8 @@ const DashboardWidgetBlueprintSchema = z.object({
 const DashboardBlueprintSchema = z.object({
   name: z.string(),
   description: z.string().optional(),
+  /** Explicit prompt for Computer to create this dashboard. If omitted, auto-generated from widgets. */
+  prompt: z.string().optional(),
   widgets: z.array(DashboardWidgetBlueprintSchema),
 });
 
